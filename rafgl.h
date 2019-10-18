@@ -12,7 +12,7 @@
 
 #include "rafgl_keys.h"
 
-#define SYSTEM_SEPARATOR "\\"
+#define SYSTEM_SEPARATOR "/"
 
 
 #define pixel_at_m(r, x, y) (*(r.data + (y) * r.width + (x)))
@@ -93,6 +93,12 @@ typedef struct _rafgl_game_state_t
     void (*cleanup)(GLFWwindow *window, void *args);
 } rafgl_game_state_t;
 
+typedef struct _rafgl_button_t
+{
+    int posx, posy, w, h;
+    uint32_t colour;
+}rafgl_button_t;
+
 
 int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int window_height, int fullscreen);
 void rafgl_game_add_game_state(rafgl_game_t *game, void (*init)(GLFWwindow *window, void *args), void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args), void (*render)(GLFWwindow *window, void *args), void (*cleanup)(GLFWwindow *window, void *args));
@@ -128,16 +134,27 @@ int rafgl_list_free(rafgl_list_t *list);
 int rafgl_list_show(rafgl_list_t *list, void (*fun)(void *data, int last));
 int rafgl_list_test(void);
 
+float randf(void);
 float rafgl_distance1D(float x1, float x2);
 float rafgl_distance2D(float x1, float y1, float x2, float y2);
 float rafgl_distance3D(float x1, float y1, float z1, float x2, float y2, float z2);
 
 int rafgl_clampi(int value, int lower, int upper);
+float rafgl_clampf(float value, float lower, float upper);
+float rafgl_lerpf(float from, float to, float scale);
+int rafgl_lerpi(int from, int to, float scale);
+rafgl_pixel_rgb_t rafgl_lerppix(rafgl_pixel_rgb_t from, rafgl_pixel_rgb_t to, float scale);
+int rafgl_calculate_pixel_brightness(rafgl_pixel_rgb_t pix);
+
+rafgl_pixel_rgb_t rafgl_point_sample(rafgl_raster_t *src, float u, float v);
+rafgl_pixel_rgb_t rafgl_bilinear_sample(rafgl_raster_t *src, float u, float v);
+
+void rafgl_button_innit(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour);
+void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn);
+int rafgl_button_check(rafgl_button_t *btn, rafgl_game_data_t *game_data);
 
 /* helpers function declarations end*/
 
-
-//#define RAFGL_IMPLEMENTATION
 
 #ifdef RAFGL_IMPLEMENTATION
 
@@ -445,7 +462,43 @@ void rafgl_game_start(rafgl_game_t *game, void *_args)
 
 /* Helpers implementation*/
 
+void rafgl_button_innit(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour)
+{
+    btn->colour = colour;
+    btn->posx = posx;
+    btn->posy = posy;
+    btn->w = width;
+    btn->h = height;
+}
 
+int rafgl_button_check(rafgl_button_t *btn, rafgl_game_data_t *game_data)
+{
+    return (rafgl_distance1D(btn->posx, game_data->mouse_pos_x) <= btn->w / 2) && (rafgl_distance1D(btn->posy, game_data->mouse_pos_y) <= btn->h / 2) && game_data->is_lmb_down;
+}
+
+void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn)
+{
+    int x, y, X, Y;
+
+    for(Y = -btn->h/2; Y < btn->h/2; Y++)
+    {
+        for(X = -btn->w/2; X < btn->w/2; X++)
+        {
+            x = rafgl_clampi(btn->posx + X, 0, target->width - 1);
+            y = rafgl_clampi(btn->posy + Y, 0, target->height - 1);
+
+            pixel_at_pm(target, x, y).rgba = btn->colour;
+
+        }
+
+    }
+}
+
+
+inline float randf(void)
+{
+    return 1.0f * rand() / RAND_MAX;
+}
 
 inline float rafgl_distance1D(float x1, float x2)
 {
@@ -480,6 +533,80 @@ int rafgl_clampi(int value, int lower, int upper)
         return upper;
     else return value;
 }
+
+float rafgl_clampf(float value, float lower, float upper)
+{
+    if(value < lower)
+        return lower;
+    else if(value > upper)
+        return upper;
+    else return value;
+}
+
+
+inline float rafgl_lerpf(float from, float to, float scale)
+{
+    return from + (to - from) * scale;
+}
+
+inline int rafgl_lerpi(int from, int to, float scale)
+{
+    return from + (to - from) * scale;
+}
+
+inline int rafgl_calculate_pixel_brightness(rafgl_pixel_rgb_t pix)
+{
+    return 0.3f * pix.r + 0.59f * pix.g + 0.11f * pix.b;
+}
+
+inline rafgl_pixel_rgb_t rafgl_lerppix(rafgl_pixel_rgb_t from, rafgl_pixel_rgb_t to, float scale)
+{
+    from.r = rafgl_lerpi(from.r, to.r, scale);
+    from.g = rafgl_lerpi(from.g, to.g, scale);
+    from.b = rafgl_lerpi(from.b, to.b, scale);
+    return from;
+}
+
+rafgl_pixel_rgb_t rafgl_point_sample(rafgl_raster_t *src, float u, float v)
+{
+    int x = rafgl_clampi(u * src -> width, 0, src -> width - 1);
+    int y = rafgl_clampi(v * src -> height, 0, src -> height - 1);
+    return pixel_at_pm(src, x, y);
+}
+
+rafgl_pixel_rgb_t rafgl_bilinear_sample(rafgl_raster_t *src, float u, float v)
+{
+    rafgl_pixel_rgb_t result, UL, UR, LL, LR, UM, LM;
+
+    int width = src->width, height = src->height;
+
+    u = rafgl_clampf((u * src -> width) - 0.5f, 0, src->width - 1.0f);
+    v = rafgl_clampf((v * src -> height)- 0.5f, 0, src->height - 1.0f);
+
+    int x0, y0, x1, y1;
+
+    x0 = u;
+    y0 = v;
+    x1 = x0 + 1;
+    y1 = y0 + 1;
+
+    if(x1 > width - 1) x1 = width - 1;
+    if(y1 > height - 1) y1 = height - 1;
+
+
+    float xscale = u - x0, yscale = v - y0;
+
+    UL = pixel_at_pm(src, x0, y0);
+    UR = pixel_at_pm(src, x1, y0);
+    LL = pixel_at_pm(src, x0, y1);
+    LR = pixel_at_pm(src, x1, y1);
+
+    UM = rafgl_lerppix(UL, UR, xscale);
+    LM = rafgl_lerppix(LL, LR, xscale);
+
+    return rafgl_lerppix(UM, LM, yscale);
+}
+
 
 
 void rafgl_texture_init(rafgl_texture_t *tex)
