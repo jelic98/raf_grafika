@@ -101,7 +101,7 @@ typedef struct _rafgl_game_state_t
 
 typedef struct _rafgl_button_t
 {
-    int posx, posy, w, h;
+    int posx, posy, w, h, pressed;
     uint32_t colour;
 }rafgl_button_t;
 
@@ -192,7 +192,7 @@ rafgl_pixel_rgb_t rafgl_point_sample(rafgl_raster_t *src, float u, float v);
 rafgl_pixel_rgb_t rafgl_bilinear_sample(rafgl_raster_t *src, float u, float v);
 
 /* creates a button */
-void rafgl_button_innit(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour);
+void rafgl_button_init(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour);
 /* applies the button to the raster */
 void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn);
 /* checks if the button is pressed (does not account for occlusion) */
@@ -834,38 +834,41 @@ void rafgl_game_start(rafgl_game_t *game, void *_args)
 
 /* Helpers implementation*/
 
-void rafgl_button_innit(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour)
+void rafgl_button_init(rafgl_button_t *btn, int posx, int posy, int width, int height, uint32_t colour)
 {
     btn->colour = colour;
     btn->posx = posx;
     btn->posy = posy;
     btn->w = width;
     btn->h = height;
+    btn->pressed = 0;
 }
 
 int rafgl_button_check(rafgl_button_t *btn, rafgl_game_data_t *game_data)
 {
-    return (rafgl_distance1D(btn->posx, game_data->mouse_pos_x) <= btn->w / 2) && (rafgl_distance1D(btn->posy, game_data->mouse_pos_y) <= btn->h / 2) && game_data->is_lmb_down;
+    return (rafgl_distance1D(btn->posx + btn->w / 2, game_data->mouse_pos_x) <= btn->w / 2)
+		&& (rafgl_distance1D(btn->posy + btn->h / 2, game_data->mouse_pos_y) <= btn->h / 2)
+		&& game_data->is_lmb_down;
 }
 
-void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn)
-{
+void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn) {
     int x, y, X, Y;
 
-    for(Y = -btn->h/2; Y < btn->h/2; Y++)
-    {
-        for(X = -btn->w/2; X < btn->w/2; X++)
-        {
+    for(Y = 0; Y < btn->h; Y++) {
+        for(X = 0; X < btn->w; X++) {
             x = rafgl_clampi(btn->posx + X, 0, target->width - 1);
             y = rafgl_clampi(btn->posy + Y, 0, target->height - 1);
 
-            pixel_at_pm(target, x, y).rgba = btn->colour;
-
+        	pixel_at_pm(target, x, y).rgba = btn->colour;
+		
+			if(btn->pressed) {
+            	pixel_at_pm(target, x, y).r *= 0.5f;
+            	pixel_at_pm(target, x, y).g *= 0.5f;
+            	pixel_at_pm(target, x, y).b *= 0.5f;
+			}
         }
-
     }
 }
-
 
 inline float randf(void)
 {
