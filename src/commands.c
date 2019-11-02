@@ -1,7 +1,19 @@
 #include <rafgl.h>
-#include <effects.h>
+#include <commands.h>
 
-void effect_zoomblur(int cmd) {
+void command_in(int cmd) {
+	int i = 0;
+
+	while(images[i][0]) {
+		i++;
+	}
+
+	strcpy(images[i], args[cmd][1]);
+    
+	rafgl_raster_load_from_image(&input, images[i]);
+}
+
+void command_zoomblur(int cmd) {
 	float intensity = atof(args[cmd][1]);
 	int sample_count = atoi(args[cmd][2]);
 
@@ -39,4 +51,3 @@ void effect_zoomblur(int cmd) {
         }
     }
 }
-

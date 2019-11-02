@@ -4,17 +4,15 @@
 #include <rafgl.h>
 #include <game_constants.h>
 #include <main_state.h>
-#include <effects.h>
+#include <commands.h>
 
 #define BUTTON_HEIGHT 100
 #define BUTTON_WIDTH RASTER_WIDTH >> 1
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
 #define COLOR_ACCEPT rafgl_RGB(0, 255, 0)
 #define COMMAND_PATH "/Users/Lazar/Desktop/in.cmd"
-#define IN_PATH "res/doge.png"
 #define OUT_PATH "/Users/Lazar/Desktop/out-"
 #define OUT_TYPE ".png"
-#define OUT_PATH_LENGTH 256
 #define SS_BUTTONS_PATH "res/buttons.png"
 #define SS_BUTTONS_WIDTH 128
 #define SS_BUTTONS_HEIGHT 64
@@ -24,12 +22,11 @@ static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
 // TODO static rafgl_spritesheet_t ss_buttons;
 static int image_id, rejected, accepted;
-static char out_file[OUT_PATH_LENGTH];
-
-typedef struct effect_t {
-	char* key;
-	void (*fun)(int);
-} effect_t;
+static char out_file[PATH_LENGTH];
+static command_t commands[] = {
+	{"IN", &command_in},
+	{"ZOOMBLUR", &command_zoomblur}
+};
 
 static void command_parse()  {
 	static int initialized = 0;
@@ -42,19 +39,20 @@ static void command_parse()  {
 			return;
 		}
 
-		int i = 0, j = 0, k = 0;
+		int i = 0, j = 0;
 		char c, arg[ARG_LENGTH] = {0};
+		char* pa = arg;
 
 		while((c = fgetc(fin)) != EOF) {
 			if(isspace(c)) {
 				strcpy(args[i][j++], arg);
-				memset(arg, k = 0, sizeof(arg));
+				memset(pa = arg, 0, sizeof(arg));
 
 				if(c == '\n') {
 					i++, j = 0;
 				}
 			}else {
-				arg[k++] = c;
+				*pa++ = c;
 			}
 		}
 
@@ -64,19 +62,13 @@ static void command_parse()  {
 	
 		initialized = 1;
 	}
-}
 
-static void command_run() {
-	static effect_t effects[] = {
-		{"ZOOMBLUR", &effect_zoomblur}
-	};
-	
 	int i = -1, j;
 	
 	while(j = -1, **args[++i]) {
-		while(*effects[++j].key) {
-			if(!strcmp(*args[i], effects[j].key)) {
-				effects[j].fun(i);
+		while(*commands[++j].key) {
+			if(!strcmp(*args[i], commands[j].key)) {
+				commands[j].fun(i);
 				break;
 			}
 		}
@@ -90,7 +82,6 @@ static void image_init() {
 	rejected = 0;	
 
 	command_parse();
-	command_run();
 }
 
 static void image_update() {
@@ -132,14 +123,10 @@ static void buttons_update(rafgl_game_data_t* game_data) {
 }
 
 void main_state_init(GLFWwindow *window, void* args) {
-    rafgl_raster_load_from_image(&input, IN_PATH);
-
-    rafgl_raster_init(&scaled, RASTER_WIDTH, RASTER_HEIGHT);
-    rafgl_raster_init(&raster, RASTER_WIDTH, RASTER_HEIGHT);
-
 	image_init();
 	buttons_init();
-
+    rafgl_raster_init(&scaled, RASTER_WIDTH, RASTER_HEIGHT);
+    rafgl_raster_init(&raster, RASTER_WIDTH, RASTER_HEIGHT);
     rafgl_texture_init(&texture);
 }
 
