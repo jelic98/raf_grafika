@@ -1,87 +1,99 @@
 #include <math.h>
+#include <ctype.h>
 #include <glad/glad.h>
 #include <rafgl.h>
 #include <game_constants.h>
 #include <main_state.h>
+#include <effects.h>
 
 #define BUTTON_HEIGHT 100
 #define BUTTON_WIDTH RASTER_WIDTH >> 1
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
 #define COLOR_ACCEPT rafgl_RGB(0, 255, 0)
 #define COMMAND_PATH "/Users/Lazar/Desktop/in.cmd"
-#define IN_PATH "res/doge.jpg"
+#define IN_PATH "res/doge.png"
 #define OUT_PATH "/Users/Lazar/Desktop/out-"
 #define OUT_TYPE ".png"
 #define OUT_PATH_LENGTH 256
-#define ARGS_MAX 5
-#define ARG_LENGTH 16
+#define SS_BUTTONS_PATH "res/buttons.png"
+#define SS_BUTTONS_WIDTH 128
+#define SS_BUTTONS_HEIGHT 64
+#define ERROR_PARSE "Error occured while parsing command file"
 
-static rafgl_raster_t input, scaled, raster;
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
+// TODO static rafgl_spritesheet_t ss_buttons;
 static int image_id, rejected, accepted;
-static char file[OUT_PATH_LENGTH];
+static char out_file[OUT_PATH_LENGTH];
 
-void command_parse(char* args[]) {
-	args[0] = "ZOOMBLUR";
-	args[1] = "0.2";
-	args[2] = "10";
+typedef struct effect_t {
+	char* key;
+	void (*fun)(int);
+} effect_t;
+
+static void command_parse()  {
+	static int initialized = 0;
+
+	if(!initialized) {
+		FILE* fin = fopen(COMMAND_PATH, "r");
+
+		if(!fin) {
+			fprintf(stderr, ERROR_PARSE);
+			return;
+		}
+
+		int i = 0, j = 0, k = 0;
+		char c, arg[ARG_LENGTH] = {0};
+
+		while((c = fgetc(fin)) != EOF) {
+			if(isspace(c)) {
+				strcpy(args[i][j++], arg);
+				memset(arg, k = 0, sizeof(arg));
+
+				if(c == '\n') {
+					i++, j = 0;
+				}
+			}else {
+				arg[k++] = c;
+			}
+		}
+
+		if(fclose(fin) == EOF) {
+			fprintf(stderr, ERROR_PARSE);
+		}
+	
+		initialized = 1;
+	}
 }
 
-void effect_zoomblur(char* args[]) {
-	float intensity = atof(args[1]);
-	int sample_count = atoi(args[2]);
-
-	int i, x, y, xs, ys, xd, yd, xc = input.width / 2, yc = input.height / 2;
-
-	float factor, r, g, b;
-
-    rafgl_pixel_rgb_t src, dst;
-
-    for(y = 0; y < input.height; y++) {
-        for(x = 0; x < input.width; x++) {
-            xd = x - xc;
-            yd = y - yc;
-
-            r = g = b = 0;
-            
-			factor = -1.0f;
-
-            for(i = 0; i < sample_count; i++) {
-                xs = rafgl_clampi(xc + (1.0f + factor * intensity) * xd, 0, input.width - 1);
-                ys = rafgl_clampi(yc + (1.0f + factor * intensity) * yd, 0, input.height - 1);
-				
-				src = pixel_at_m(input, xs, ys);
-                
-				r += src.r;
-                g += src.g;
-                b += src.b;
-				
-				factor += 1.2f / sample_count;
-            }
-
-            dst.r = r / sample_count;
-            dst.g = g / sample_count;
-            dst.b = b / sample_count;
-
-            pixel_at_m(input, x, y) = dst;
-        }
-    }
+static void command_run() {
+	static effect_t effects[] = {
+		{"ZOOMBLUR", &effect_zoomblur}
+	};
+	
+	int i = -1, j;
+	
+	while(j = -1, **args[++i]) {
+		while(*effects[++j].key) {
+			if(!strcmp(*args[i], effects[j].key)) {
+				effects[j].fun(i);
+				break;
+			}
+		}
+	}
 }
 
-void image_init() {
+static void image_init() {
 	image_id++;
 	
 	accepted = 0;
 	rejected = 0;	
-	
-	char args[ARGS_MAX][ARG_LENGTH];
-	command_parse(args);
 
-	effect_zoomblur(args);
+	command_parse();
+	command_run();
 }
 
-void image_update() {
+static void image_update() {
 	int x, y;
     float xn, yn;
 
@@ -96,18 +108,27 @@ void image_update() {
     }
 }
 
-void buttons_show(rafgl_game_data_t* game_data) {
+static void buttons_init() {
+	rafgl_button_init(&btn_reject, 0, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
+	rafgl_button_init(&btn_accept, BUTTON_WIDTH, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
+
+	// TODO rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTONS_WIDTH, SS_BUTTONS_HEIGHT);
+}
+
+static void buttons_update(rafgl_game_data_t* game_data) {
 	btn_reject.pressed = rafgl_button_check(&btn_reject, game_data);
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
 	if(btn_accept.pressed && !accepted) {
-        sprintf(file, OUT_PATH "%d" OUT_TYPE, image_id);
-        rafgl_raster_save_to_png(&raster, file);
+        sprintf(out_file, OUT_PATH "%d" OUT_TYPE, image_id);
+        rafgl_raster_save_to_png(&raster, out_file);
 		accepted = 1;
 	}
 
 	rafgl_button_show(&raster, &btn_reject);
 	rafgl_button_show(&raster, &btn_accept);
+
+	// TODO rafgl_raster_draw_spritesheet(&raster, &ss_buttons, 0, 0, 11, 12);
 }
 
 void main_state_init(GLFWwindow *window, void* args) {
@@ -117,16 +138,14 @@ void main_state_init(GLFWwindow *window, void* args) {
     rafgl_raster_init(&raster, RASTER_WIDTH, RASTER_HEIGHT);
 
 	image_init();
-
-	rafgl_button_init(&btn_reject, 0, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
-	rafgl_button_init(&btn_accept, BUTTON_WIDTH, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
+	buttons_init();
 
     rafgl_texture_init(&texture);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void* args) {
 	image_update();
-	buttons_show(game_data);
+	buttons_update(game_data);
 	rafgl_texture_load_from_raster(&texture, &raster);
 }
 

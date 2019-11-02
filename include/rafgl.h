@@ -405,19 +405,19 @@ void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *
     int fl, fr, fu, fd;
     int flc, frc, fuc, fdc;
     int xi, yi;
-
+	
     rafgl_pixel_rgb_t sampled;
 
     fl = x;
     fr = x + spritesheet->frame_width;
     fu = y;
     fd = y + spritesheet->frame_height;
-
+	
     flc = rafgl_max_m(fl, 0);
     frc = rafgl_min_m(fr, raster->width);
     fuc = rafgl_max_m(fu, 0);
     fdc = rafgl_min_m(fd, raster->height);
-
+	
     for(yi = fuc; yi < fdc; yi++)
     {
         for(xi = flc; xi < frc; xi++)
