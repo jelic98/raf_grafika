@@ -15,8 +15,9 @@ typedef struct command_t {
 rafgl_raster_t input, output;
 char images[IMGS_MAX][PATH_LENGTH];
 char args[CMDS_MAX][ARGS_MAX][ARG_LENGTH];
+int img_total, img_id;
 
-void command_in(int);
+void command_load(int);
 void command_line(int);
 void command_circ(int);
 void command_rect(int);

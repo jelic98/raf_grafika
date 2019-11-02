@@ -1,10 +1,18 @@
 #include <rafgl.h>
 #include <commands.h>
 
-void command_in(int cmd) {
+void command_load(int cmd) {
 	char* path = args[cmd][1];
+	
+	if(!img_id) {
+		while(images[img_total][0]) {
+			img_total++;
+		}
 
-	rafgl_raster_load_from_image(&input, path);
+		strcpy(images[img_total], path);
+	}
+
+	rafgl_raster_load_from_image(&input, images[img_id]);
 }
 
 void command_line(int cmd) {

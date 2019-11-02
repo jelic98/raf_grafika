@@ -22,10 +22,12 @@
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
 static rafgl_spritesheet_t ss_buttons;
-static int image_id, rejected, accepted;
+static int rejected, accepted;
 static char out_file[PATH_LENGTH];
+
+// TODO Document command arguments
 static command_t commands[] = {
-	{"IN", &command_in}, // Load image from file
+	{"LOAD", &command_load}, // Load image from file
 	{"LINE", &command_line}, // Draw line
 	{"CIRC", &command_circ}, // Draw circle
 	{"RECT", &command_rect}, // Draw rectangle
@@ -33,7 +35,7 @@ static command_t commands[] = {
 	{"ZBLR", &command_zblr} // Apply zoom blur on image
 };
 
-static void command_parse()  {
+void command_parse()  {
 	static int initialized = 0;
 
 	if(!initialized) {
@@ -80,16 +82,14 @@ static void command_parse()  {
 	}
 }
 
-static void image_init() {
-	image_id++;
-	
+void image_init() {	
 	accepted = 0;
 	rejected = 0;	
-
+	
 	command_parse();
 }
 
-static void image_update() {
+void image_update() {
 	int x, y;
     float xn, yn;
 	
@@ -104,21 +104,33 @@ static void image_update() {
     }
 }
 
-static void buttons_init() {
+void image_reload() {
+	if(img_id++ < img_total) {
+		image_init();
+	}
+}
+
+void buttons_init() {
 	rafgl_button_init(&btn_reject, 0, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
 	rafgl_button_init(&btn_accept, BUTTON_WIDTH, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
 
 	rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTON_WIDTH, SS_BUTTON_HEIGHT);
 }
 
-static void buttons_update(rafgl_game_data_t* game_data) {
+void buttons_update(rafgl_game_data_t* game_data) {
 	btn_reject.pressed = rafgl_button_check(&btn_reject, game_data);
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
 	if(btn_accept.pressed && !accepted) {
-        sprintf(out_file, OUT_PATH "%d" OUT_TYPE, image_id);
+        sprintf(out_file, OUT_PATH "%d" OUT_TYPE, img_id);
         rafgl_raster_save_to_png(&input, out_file);
 		accepted = 1;
+		
+		image_reload();
+	}
+
+	if(btn_reject.pressed && !rejected) {
+		image_reload();
 	}
 
 	rafgl_button_show(&output, &btn_reject);
