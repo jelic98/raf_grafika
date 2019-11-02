@@ -14,7 +14,7 @@ void command_line(int cmd) {
 	int y1 = strtol(args[cmd][4], NULL, 10);
 	uint32_t stroke = strtol(args[cmd][5], NULL, 16);
 
-	rafgl_raster_draw_line(&input, x0, y0, x1, y1, stroke);
+	rafgl_raster_draw_line(&input, x0, y0, x1, y1, rafgl_HEX(stroke));
 }
 
 void command_circ(int cmd) {
@@ -24,7 +24,7 @@ void command_circ(int cmd) {
 	uint32_t stroke = strtol(args[cmd][4], NULL, 16);
 	uint32_t fill = strtol(args[cmd][5], NULL, 16);
 
-	rafgl_raster_draw_circle(&input, x0, y0, r, stroke, fill);
+	rafgl_raster_draw_circle(&input, x0, y0, r, rafgl_HEX(stroke), rafgl_HEX(fill));
 }
 
 void command_rect(int cmd) {
@@ -35,7 +35,7 @@ void command_rect(int cmd) {
 	uint32_t stroke = strtol(args[cmd][5], NULL, 16);
 	uint32_t fill = strtol(args[cmd][6], NULL, 16);
 
-	rafgl_raster_draw_rectangle(&input, x0, y0, w, h, stroke, fill);
+	rafgl_raster_draw_rectangle(&input, x0, y0, w, h, rafgl_HEX(stroke), rafgl_HEX(fill));
 }
 
 void command_inst(int cmd) {

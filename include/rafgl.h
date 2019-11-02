@@ -28,6 +28,7 @@
 
 #define rafgl_RGBA(r, g, b, a) (((r) << 0) | ((g) << 8) | ((b) << 16) | ((a) << 24))
 #define rafgl_RGB(r, g, b) rafgl_RGBA(r, g, b, 0xff)
+#define rafgl_HEX(hex) rafgl_RGBA(((hex & 0xFF000000) >> 24), ((hex & 0x00FF0000) >> 16), ((hex & 0x0000FF00) >> 8), (hex & 0x000000FF))
 
 
 typedef union _rafgl_pixel_rgb_t
@@ -665,7 +666,7 @@ void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int 
     int dy = -rafgl_abs_m((y1-y0)), sy = y0<y1 ? 1 : -1;
     int err = dx+dy, e2; /* error value e_xy */
 
-    while(1)
+	while(1)
     {
         pixel_at_pm(raster, x0, y0).rgba = stroke;
         if (x0==x1 && y0==y1) break;
