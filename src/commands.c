@@ -13,6 +13,8 @@ void command_load(int cmd) {
 	}
 
 	rafgl_raster_load_from_image(&input, images[img_id]);
+	// TODO rafgl_raster_init(&output, raster_width = input.width, raster_height = input.height);
+	rafgl_raster_init(&output, raster_width, raster_height);
 }
 
 void command_line(int cmd) {

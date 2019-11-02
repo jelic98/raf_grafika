@@ -1,7 +1,0 @@
-#ifndef GAME_CONSTANTS_H_INCLUDED
-#define GAME_CONSTANTS_H_INCLUDED
-
-#define RASTER_WIDTH (700)
-#define RASTER_HEIGHT (700)
-
-#endif

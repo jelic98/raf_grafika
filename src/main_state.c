@@ -2,28 +2,28 @@
 #include <ctype.h>
 #include <glad/glad.h>
 #include <rafgl.h>
-#include <game_constants.h>
 #include <main_state.h>
 #include <commands.h>
 
 #define BUTTON_HEIGHT 100
-#define BUTTON_WIDTH RASTER_WIDTH >> 1
+#define BUTTON_WIDTH (raster_width >> 1)
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
 #define COLOR_ACCEPT rafgl_RGB(0, 255, 0)
-#define COMMAND_PATH "/Users/Lazar/Desktop/in.cmd"
 #define OUT_PATH "/Users/Lazar/Desktop/out-"
 #define OUT_TYPE ".png"
 #define SS_BUTTONS_PATH "res/buttons.png"
 #define SS_BUTTON_WIDTH 2
 #define SS_BUTTON_HEIGHT 1
-#define ERROR_PARSE "Error occured while parsing command file"
+#define ERROR_ARGS "Error occured while parsing arguments\n"
+#define ERROR_COMMAND "Error occured while parsing command file\n"
+#define FLAG_INTERACTIVE "-i"
 #define COMMENT_CHAR '#'
 
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
 static rafgl_spritesheet_t ss_buttons;
-static int rejected, accepted;
-static char out_file[PATH_LENGTH];
+static int interactive, rejected, accepted;
+static char command_file[PATH_LENGTH], out_file[PATH_LENGTH];
 
 // TODO Document command arguments
 static command_t commands[] = {
@@ -35,14 +35,31 @@ static command_t commands[] = {
 	{"ZBLR", &command_zblr} // Apply zoom blur on image
 };
 
+void args_parse(int argc, char* argv[]) {
+	if(argc < 2) {
+		fprintf(stderr, ERROR_ARGS);
+		return;
+	}
+
+	strcpy(command_file, argv[1]);
+	
+	int i;
+
+	for(i = 2; i < argc; i++) {
+		if(!strcmp(argv[i], FLAG_INTERACTIVE)) {
+			interactive = 1;
+		}
+	}
+}
+
 void command_parse()  {
 	static int initialized = 0;
 
 	if(!initialized) {
-		FILE* fin = fopen(COMMAND_PATH, "r");
+		FILE* fin = fopen(command_file, "r");
 
 		if(!fin) {
-			fprintf(stderr, ERROR_PARSE);
+			fprintf(stderr, ERROR_COMMAND);
 			return;
 		}
 
@@ -64,7 +81,7 @@ void command_parse()  {
 		}
 
 		if(fclose(fin) == EOF) {
-			fprintf(stderr, ERROR_PARSE);
+			fprintf(stderr, ERROR_COMMAND);
 		}
 	
 		initialized = 1;
@@ -93,11 +110,11 @@ void image_update() {
 	int x, y;
     float xn, yn;
 	
-    for(y = 0; y < RASTER_HEIGHT; y++) {
-        yn = 1.0f * y / RASTER_HEIGHT;
+    for(y = 0; y < raster_height; y++) {
+        yn = 1.0f * y / raster_height;
 
-        for(x = 0; x < RASTER_WIDTH; x++) {
-            xn = 1.0f * x / RASTER_WIDTH;
+        for(x = 0; x < raster_width; x++) {
+            xn = 1.0f * x / raster_width;
             
             pixel_at_m(output, x, y) = rafgl_bilinear_sample(&input, xn, yn);
         }
@@ -111,8 +128,8 @@ void image_reload() {
 }
 
 void buttons_init() {
-	rafgl_button_init(&btn_reject, 0, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
-	rafgl_button_init(&btn_accept, BUTTON_WIDTH, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
+	rafgl_button_init(&btn_reject, 0, raster_height - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
+	rafgl_button_init(&btn_accept, BUTTON_WIDTH, raster_height - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
 
 	rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTON_WIDTH, SS_BUTTON_HEIGHT);
 }
@@ -136,14 +153,13 @@ void buttons_update(rafgl_game_data_t* game_data) {
 	rafgl_button_show(&output, &btn_reject);
 	rafgl_button_show(&output, &btn_accept);
 
-	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 1, 0, (BUTTON_WIDTH >> 1) - ss_buttons.frame_width / 2, RASTER_HEIGHT - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
-	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 0, 0, (BUTTON_WIDTH) + (BUTTON_WIDTH >> 1) - ss_buttons.frame_width / 2, RASTER_HEIGHT - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 1, 0, (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 0, 0, (BUTTON_WIDTH) + (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
 }
 
 void main_state_init(GLFWwindow *window, void* args) {
 	image_init();
 	buttons_init();
-    rafgl_raster_init(&output, RASTER_WIDTH, RASTER_HEIGHT);
     rafgl_texture_init(&texture);
 }
 

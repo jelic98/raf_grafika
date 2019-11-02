@@ -16,6 +16,8 @@ rafgl_raster_t input, output;
 char images[IMGS_MAX][PATH_LENGTH];
 char args[CMDS_MAX][ARGS_MAX][ARG_LENGTH];
 int img_total, img_id;
+int raster_width;
+int raster_height;
 
 void command_load(int);
 void command_line(int);
