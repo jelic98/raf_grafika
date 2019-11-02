@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include <glad/glad.h>
@@ -202,9 +203,9 @@ void rafgl_raster_box_blur(rafgl_raster_t *result, rafgl_raster_t *tmp, rafgl_ra
 
 void rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, int y);
 
-void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int y1, uint32_t colour);
-void rafgl_raster_draw_circle(rafgl_raster_t *raster, int cx, int cy, int r, uint32_t colour);
-void rafgl_raster_draw_rectangle(rafgl_raster_t *raster, int x0, int y0, int w, int h, uint32_t colour);
+void rafgl_raster_draw_line(rafgl_raster_t* raster, int x0, int y0, int x1, int y1, uint32_t stroke);
+void rafgl_raster_draw_circle(rafgl_raster_t* raster, int cx, int cy, int r, uint32_t stroke, uint32_t fill);
+void rafgl_raster_draw_rectangle(rafgl_raster_t* raster, int x0, int y0, int w, int h, uint32_t stroke, uint32_t fill);
 
 void rafgl_raster_bilinear_upsample(rafgl_raster_t *to, rafgl_raster_t *from);
 
@@ -368,7 +369,7 @@ int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int
 
     glfwSetKeyCallback(__window, __key_callback);
 
-    RAFGL_COLOUR_KEY.rgba = rafgl_RGB(255, 0, 254);
+    RAFGL_COLOUR_KEY.rgba = rafgl_RGB(0, 0, 0);
 
     return 0;
 }
@@ -392,16 +393,15 @@ int rafgl_raster_cleanup(rafgl_raster_t *raster)
 
 
 void rafgl_spritesheet_init(rafgl_spritesheet_t *spritesheet, const char *sheet_path, int sheet_width, int sheet_height)
-{
-    rafgl_raster_load_from_image(&(spritesheet->sheet), sheet_path);
+{ 
+	rafgl_raster_load_from_image(&(spritesheet->sheet), sheet_path);
     spritesheet->sheet_width = sheet_width;
     spritesheet->sheet_height = sheet_height;
     spritesheet->frame_width = spritesheet->sheet.width / sheet_width;
     spritesheet->frame_height = spritesheet->sheet.height / sheet_height;
 }
 
-void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *spritesheet, int sheet_x, int sheet_y, int x, int y)
-{
+void rafgl_raster_draw_spritesheet(rafgl_raster_t* raster, rafgl_spritesheet_t* spritesheet, int sheet_x, int sheet_y, int x, int y) {
     int fl, fr, fu, fd;
     int flc, frc, fuc, fdc;
     int xi, yi;
@@ -418,20 +418,16 @@ void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *
     fuc = rafgl_max_m(fu, 0);
     fdc = rafgl_min_m(fd, raster->height);
 	
-    for(yi = fuc; yi < fdc; yi++)
-    {
-        for(xi = flc; xi < frc; xi++)
-        {
+    for(yi = fuc; yi < fdc; yi++) {
+        for(xi = flc; xi < frc; xi++) {
             sampled = pixel_at_m(spritesheet->sheet, sheet_x * spritesheet->frame_width + xi - fl, sheet_y * spritesheet->frame_height + yi - fu);
-            if(sampled.rgba != RAFGL_COLOUR_KEY.rgba)
-            {
+            
+			if(sampled.rgba != RAFGL_COLOUR_KEY.rgba) {
                 pixel_at_pm(raster, xi, yi) = sampled;
             }
         }
     }
-
 }
-
 
 int rafgl_raster_copy(rafgl_raster_t *raster_to, rafgl_raster_t *raster_from)
 {
@@ -588,7 +584,7 @@ static int __compute_outcode(int x, int y, rafgl_raster_t *raster)
     return code;
 }
 
-void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int y1, uint32_t colour)
+void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int y1, uint32_t stroke)
 {
 
     int xmin = 0, ymin = 0, xmax = raster->width - 1, ymax = raster->height - 1;
@@ -671,7 +667,7 @@ void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int 
 
     while(1)
     {
-        pixel_at_pm(raster, x0, y0).rgba = colour;
+        pixel_at_pm(raster, x0, y0).rgba = stroke;
         if (x0==x1 && y0==y1) break;
         e2 = 2*err;
         if (e2 >= dy) { err += dy; x0 += sx; } /* e_xy+e_x > 0 */
@@ -681,26 +677,41 @@ void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int 
 }
 
 /* DOES NOT DO CLIPPING! */
-void rafgl_raster_draw_circle(rafgl_raster_t *raster, int cx, int cy, int r, uint32_t colour)
+void rafgl_raster_draw_circle(rafgl_raster_t* raster, int cx, int cy, int r, uint32_t stroke, uint32_t fill)
 {
     int x = -r, y = 0, err = 2-2*r; /* II. Quadrant */
     do {
-        pixel_at_pm(raster, cx-x, cy+y).rgba = colour; /*   I. Quadrant */
-        pixel_at_pm(raster, cx-y, cy-x).rgba = colour; /*  II. Quadrant */
-        pixel_at_pm(raster, cx+x, cy-y).rgba = colour; /* III. Quadrant */
-        pixel_at_pm(raster, cx+y, cy+x).rgba = colour; /*  IV. Quadrant */
+        pixel_at_pm(raster, cx-x, cy+y).rgba = stroke; /*   I. Quadrant */
+        pixel_at_pm(raster, cx-y, cy-x).rgba = stroke; /*  II. Quadrant */
+        pixel_at_pm(raster, cx+x, cy-y).rgba = stroke; /* III. Quadrant */
+        pixel_at_pm(raster, cx+y, cy+x).rgba = stroke; /*  IV. Quadrant */
         r = err;
         if (r <= y) err += ++y*2+1;           /* e_xy+e_y < 0 */
         if (r > x || err > y) err += ++x*2+1; /* e_xy+e_x > 0 or no 2nd y-step */
     } while (x < 0);
+
+    for(y = rafgl_max_m(cy - r, 0); y < rafgl_min_m(cy + r, raster->height); y++) {
+		for(x = rafgl_max_m(cx - r, 0); x < rafgl_min_m(cx + r, raster->width); x++) {
+			if(rafgl_distance2D(x, y, cx, cy) < r / 2) {
+        		pixel_at_pm(raster, x, y).rgba = fill;
+			}
+        }
+    }
 }
 
-void rafgl_raster_draw_rectangle(rafgl_raster_t *raster, int x0, int y0, int w, int h, uint32_t colour)
-{
-    rafgl_raster_draw_line(raster, x0, y0, x0 + w, y0, colour);
-    rafgl_raster_draw_line(raster, x0, y0 + h, x0 + w, y0 + h, colour);
-    rafgl_raster_draw_line(raster, x0, y0, x0, y0 + h, colour);
-    rafgl_raster_draw_line(raster, x0 + w, y0, x0 + w, y0 + h, colour);
+void rafgl_raster_draw_rectangle(rafgl_raster_t* raster, int x0, int y0, int w, int h, uint32_t stroke, uint32_t fill) {
+    rafgl_raster_draw_line(raster, x0, y0, x0 + w, y0, stroke);
+    rafgl_raster_draw_line(raster, x0, y0 + h, x0 + w, y0 + h, stroke);
+    rafgl_raster_draw_line(raster, x0, y0, x0, y0 + h, stroke);
+    rafgl_raster_draw_line(raster, x0 + w, y0, x0 + w, y0 + h, stroke);
+
+	int x, y;
+
+    for(y = y0 + 1; y < y0 + h; y++) {
+		for(x = x0 + 1; x < x0 + w; x++) {
+        	pixel_at_pm(raster, x, y).rgba = fill;
+        }
+    }
 }
 
 void rafgl_raster_bilinear_upsample(rafgl_raster_t *to, rafgl_raster_t *from)

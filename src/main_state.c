@@ -14,18 +14,23 @@
 #define OUT_PATH "/Users/Lazar/Desktop/out-"
 #define OUT_TYPE ".png"
 #define SS_BUTTONS_PATH "res/buttons.png"
-#define SS_BUTTONS_WIDTH 128
-#define SS_BUTTONS_HEIGHT 64
+#define SS_BUTTON_WIDTH 2
+#define SS_BUTTON_HEIGHT 1
 #define ERROR_PARSE "Error occured while parsing command file"
+#define COMMENT_CHAR '#'
 
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
-// TODO static rafgl_spritesheet_t ss_buttons;
+static rafgl_spritesheet_t ss_buttons;
 static int image_id, rejected, accepted;
 static char out_file[PATH_LENGTH];
 static command_t commands[] = {
-	{"IN", &command_in},
-	{"ZOOMBLUR", &command_zoomblur}
+	{"IN", &command_in}, // Load image from file
+	{"LINE", &command_line}, // Draw line
+	{"CIRC", &command_circ}, // Draw circle
+	{"RECT", &command_rect}, // Draw rectangle
+	{"INST", &command_inst}, // Insert image from file
+	{"ZBLR", &command_zblr} // Apply zoom blur on image
 };
 
 static void command_parse()  {
@@ -66,7 +71,7 @@ static void command_parse()  {
 	int i = -1, j;
 	
 	while(j = -1, **args[++i]) {
-		while(*commands[++j].key) {
+		while(*commands[++j].key && **args[i] != COMMENT_CHAR) {
 			if(!strcmp(*args[i], commands[j].key)) {
 				commands[j].fun(i);
 				break;
@@ -87,14 +92,14 @@ static void image_init() {
 static void image_update() {
 	int x, y;
     float xn, yn;
-
+	
     for(y = 0; y < RASTER_HEIGHT; y++) {
         yn = 1.0f * y / RASTER_HEIGHT;
 
         for(x = 0; x < RASTER_WIDTH; x++) {
             xn = 1.0f * x / RASTER_WIDTH;
             
-            pixel_at_m(raster, x, y) = rafgl_bilinear_sample(&input, xn, yn);
+            pixel_at_m(output, x, y) = rafgl_bilinear_sample(&input, xn, yn);
         }
     }
 }
@@ -103,7 +108,7 @@ static void buttons_init() {
 	rafgl_button_init(&btn_reject, 0, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
 	rafgl_button_init(&btn_accept, BUTTON_WIDTH, RASTER_HEIGHT - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
 
-	// TODO rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTONS_WIDTH, SS_BUTTONS_HEIGHT);
+	rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTON_WIDTH, SS_BUTTON_HEIGHT);
 }
 
 static void buttons_update(rafgl_game_data_t* game_data) {
@@ -112,28 +117,28 @@ static void buttons_update(rafgl_game_data_t* game_data) {
 
 	if(btn_accept.pressed && !accepted) {
         sprintf(out_file, OUT_PATH "%d" OUT_TYPE, image_id);
-        rafgl_raster_save_to_png(&raster, out_file);
+        rafgl_raster_save_to_png(&input, out_file);
 		accepted = 1;
 	}
 
-	rafgl_button_show(&raster, &btn_reject);
-	rafgl_button_show(&raster, &btn_accept);
+	rafgl_button_show(&output, &btn_reject);
+	rafgl_button_show(&output, &btn_accept);
 
-	// TODO rafgl_raster_draw_spritesheet(&raster, &ss_buttons, 0, 0, 11, 12);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 1, 0, (BUTTON_WIDTH >> 1) - ss_buttons.frame_width / 2, RASTER_HEIGHT - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 0, 0, (BUTTON_WIDTH) + (BUTTON_WIDTH >> 1) - ss_buttons.frame_width / 2, RASTER_HEIGHT - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2);
 }
 
 void main_state_init(GLFWwindow *window, void* args) {
 	image_init();
 	buttons_init();
-    rafgl_raster_init(&scaled, RASTER_WIDTH, RASTER_HEIGHT);
-    rafgl_raster_init(&raster, RASTER_WIDTH, RASTER_HEIGHT);
+    rafgl_raster_init(&output, RASTER_WIDTH, RASTER_HEIGHT);
     rafgl_texture_init(&texture);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void* args) {
 	image_update();
 	buttons_update(game_data);
-	rafgl_texture_load_from_raster(&texture, &raster);
+	rafgl_texture_load_from_raster(&texture, &output);
 }
 
 void main_state_render(GLFWwindow *window, void* args) {
@@ -141,6 +146,6 @@ void main_state_render(GLFWwindow *window, void* args) {
 }
 
 void main_state_cleanup(GLFWwindow *window, void* args) {
-    rafgl_raster_cleanup(&raster);
+    rafgl_raster_cleanup(&output);
     rafgl_texture_cleanup(&texture);
 }
