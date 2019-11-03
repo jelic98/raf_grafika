@@ -126,6 +126,8 @@ int rafgl_raster_cleanup(rafgl_raster_t *raster);
 void rafgl_spritesheet_init(rafgl_spritesheet_t *spritesheet, const char *sheet_path, int sheet_width, int sheet_height);
 void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *spritesheet, int sheet_x, int sheet_y, int x, int y);
 
+int rafgl_brightness(rafgl_pixel_rgb_t);
+int rafgl_saturate(int);
 
 /* helpers function declarations start */
 
@@ -1005,7 +1007,13 @@ rafgl_pixel_rgb_t rafgl_bilinear_sample(rafgl_raster_t *src, float u, float v)
     return rafgl_lerppix(UM, LM, yscale);
 }
 
+int rafgl_brightness(rafgl_pixel_rgb_t pixel) {
+    return 0.3f * pixel.r + 0.59f * pixel.g + 0.11f * pixel.b;
+}
 
+int rafgl_saturate(int value) {
+    return rafgl_clampi(value, 0, 255);
+}
 
 void rafgl_texture_init(rafgl_texture_t *tex)
 {

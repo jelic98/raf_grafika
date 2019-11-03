@@ -9,8 +9,6 @@
 #define BUTTON_WIDTH (raster_width >> 1)
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
 #define COLOR_ACCEPT rafgl_RGB(0, 255, 0)
-#define OUT_PATH "/Users/Lazar/Desktop/out-"
-#define OUT_TYPE ".png"
 #define SS_BUTTONS_PATH "res/buttons.png"
 #define SS_BUTTON_WIDTH 2
 #define SS_BUTTON_HEIGHT 1
@@ -23,16 +21,26 @@ static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
 static rafgl_spritesheet_t ss_buttons;
 static int interactive, rejected, accepted;
-static char command_file[PATH_LENGTH], out_file[PATH_LENGTH];
+static char command_file[PATH_LENGTH];
 
-// TODO Document command arguments
 static command_t commands[] = {
-	{"LOAD", &command_load}, // Load image from file
-	{"LINE", &command_line}, // Draw line
-	{"CIRC", &command_circ}, // Draw circle
-	{"RECT", &command_rect}, // Draw rectangle
-	{"INST", &command_inst}, // Insert image from file
-	{"ZBLR", &command_zblr} // Apply zoom blur on image
+	{"LOAD", &command_load},
+	{"LINE", &command_line},
+	{"CIRC", &command_circ},
+	{"RECT", &command_rect},
+	{"INST", &command_inst},
+	{"ROTA", &command_rota},
+	{"FLPV", &command_flpv},
+	{"FLPH", &command_flph},
+	{"EDGE", &command_edge},
+	{"AUTO", &command_auto},
+	{"NGTV", &command_ngtv},
+	{"GRAY", &command_gray},
+	{"BLWH", &command_blwh},
+	{"VIGN", &command_vign},
+	{"BBLR", &command_bblr},
+	{"RBLR", &command_rblr},
+	{"ZBLR", &command_zblr}
 };
 
 void args_parse(int argc, char* argv[]) {
@@ -116,7 +124,7 @@ void image_update() {
         for(x = 0; x < raster_width; x++) {
             xn = 1.0f * x / raster_width;
             
-            pixel_at_m(output, x, y) = rafgl_bilinear_sample(&input, xn, yn);
+            pixel_at_m(output, x, y) = rafgl_point_sample(&input, xn, yn);
         }
     }
 }
@@ -139,8 +147,7 @@ void buttons_update(rafgl_game_data_t* game_data) {
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
 	if(btn_accept.pressed && !accepted) {
-        sprintf(out_file, OUT_PATH "%d" OUT_TYPE, img_id);
-        rafgl_raster_save_to_png(&input, out_file);
+        rafgl_raster_save_to_png(&input, images[img_id][1]);
 		accepted = 1;
 		
 		image_reload();
