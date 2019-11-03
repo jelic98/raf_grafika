@@ -374,6 +374,8 @@ void command_rblr(int cmd) {
 	float factor, angle, distance, r, g, b;
     rafgl_pixel_rgb_t src, dst;
 
+	rafgl_raster_init(&aux, input.width, input.height);	
+
     for(y = 0; y < input.height; y++) {
         for(x = 0; x < input.width; x++) {
             r = g = b = 0;
@@ -399,7 +401,13 @@ void command_rblr(int cmd) {
             dst.g = g / sample_count;
             dst.b = b / sample_count;
 
-            pixel_at_m(input, x, y) = dst;
+            pixel_at_m(aux, x, y) = dst;
+        }
+    }
+
+	for(y = 0; y < input.height; y++) {
+        for(x = 0; x < input.width; x++) {
+          	pixel_at_m(input, x, y) = pixel_at_m(aux, x, y);
         }
     }
 }
@@ -411,6 +419,8 @@ void command_zblr(int cmd) {
 	int sample_count = input.width * 0.1;
 	float factor, r, g, b;
     rafgl_pixel_rgb_t src, dst;
+
+	rafgl_raster_init(&aux, input.width, input.height);	
 
     for(y = 0; y < input.height; y++) {
         for(x = 0; x < input.width; x++) {
@@ -438,7 +448,14 @@ void command_zblr(int cmd) {
             dst.g = g / sample_count;
             dst.b = b / sample_count;
 
-            pixel_at_m(input, x, y) = dst;
+            pixel_at_m(aux, x, y) = dst;
         }
     }
+
+	for(y = 0; y < input.height; y++) {
+        for(x = 0; x < input.width; x++) {
+          	pixel_at_m(input, x, y) = pixel_at_m(aux, x, y);
+        }
+    }
+
 }
