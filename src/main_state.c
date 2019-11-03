@@ -5,8 +5,6 @@
 #include <main_state.h>
 #include <commands.h>
 
-// TODO Handle button hold (create released flag)
-
 #define BUTTON_HEIGHT 100
 #define BUTTON_WIDTH (raster_width >> 1)
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
@@ -22,7 +20,7 @@
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
 static rafgl_spritesheet_t ss_buttons;
-static int interactive, rejected, accepted;
+static int interactive, reject_pressed, accept_pressed, reject_released, accept_released;
 static char command_file[PATH_LENGTH];
 
 static command_t commands[] = {
@@ -110,8 +108,11 @@ void command_parse()  {
 }
 
 void image_init() {	
-	accepted = 0;
-	rejected = 0;	
+	accept_pressed = 0;
+	reject_pressed = 0;	
+	
+	accept_released = 0;
+	reject_released = 0;	
 	
 	command_parse();
 }
@@ -140,10 +141,8 @@ void image_reload() {
 	if(img_id++ < img_total) {
 		image_init();
 	}else {
-		if(!interactive) {
-			rafgl_game_destroy();
-			exit(EXIT_SUCCESS);
-		}
+		rafgl_game_destroy();
+		exit(EXIT_SUCCESS);
 	}
 }
 
@@ -166,14 +165,18 @@ void buttons_update(rafgl_game_data_t* game_data) {
 	btn_reject.pressed = rafgl_button_check(&btn_reject, game_data);
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
-	if(btn_accept.pressed && !accepted) {
-		accepted = 1;
+	accept_pressed |= btn_accept.pressed;
+	reject_pressed |= btn_reject.pressed;
+
+	accept_released |= !btn_accept.pressed && accept_pressed;
+	reject_released |= !btn_reject.pressed && reject_pressed;
+
+	if(accept_released) {
 		rafgl_raster_save_to_png(&input, images[img_id][1]);
 		image_reload();
 	}
 
-	if(btn_reject.pressed && !rejected) {
-		rejected = 1;
+	if(reject_released) {
 		image_reload();
 	}
 
