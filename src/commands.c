@@ -146,6 +146,7 @@ void command_edge(int cmd) {
             dst.r = rafgl_saturate(delta << 2);
             dst.g = rafgl_saturate(delta << 2);
             dst.b = rafgl_saturate(delta << 2);
+			dst.a = src.a;
 
 			pixel_at_m(input, x, y) = dst;
         }
@@ -210,6 +211,7 @@ void command_auto(int cmd) {
             dst.r = rafgl_saturate((src.r - left_bound) * scale);
             dst.g = rafgl_saturate((src.g - left_bound) * scale);
             dst.b = rafgl_saturate((src.b - left_bound) * scale);
+            dst.a = src.a;
  
    			pixel_at_m(input, x, y) = dst;
         }
@@ -228,7 +230,8 @@ void command_ngtv(int cmd) {
 			dst.r = 255 - src.r;
 			dst.g = 255 - src.g;
 			dst.b = 255 - src.b;
-			
+			dst.a = src.a;
+
 			pixel_at_m(input, x, y) = dst;
         }
     }
@@ -248,7 +251,8 @@ void command_gray(int cmd) {
             dst.r = brightness;
             dst.g = brightness;
             dst.b = brightness;
-
+			dst.a = src.a;
+			
 			pixel_at_m(input, x, y) = dst;
         }
     }
@@ -276,6 +280,8 @@ void command_blwh(int cmd) {
             	dst.g = 0;
             	dst.b = 0;
 			}
+			
+			dst.a = src.a;
     
    			pixel_at_m(input, x, y) = dst;
         }
@@ -305,6 +311,7 @@ void command_vign(int cmd) {
             dst.r = rafgl_saturate(src.r * (1.0f - dist * factor));
             dst.g = rafgl_saturate(src.g * (1.0f - dist * factor));
             dst.b = rafgl_saturate(src.b * (1.0f - dist * factor));
+			dst.a = src.a;
  
    			pixel_at_m(input, x, y) = dst;
         }
@@ -337,6 +344,7 @@ void command_bblr(int cmd) {
             dst.r = r / sample_count;
             dst.g = g / sample_count;
             dst.b = b / sample_count;
+			dst.a = src.a;
 
             pixel_at_m(input, x, y) = dst;
         }
@@ -360,6 +368,7 @@ void command_bblr(int cmd) {
             dst.r = r / sample_count;
             dst.g = g / sample_count;
             dst.b = b / sample_count;
+			dst.a = src.a;
 
             pixel_at_m(input, x, y) = dst;
         }
@@ -371,14 +380,14 @@ void command_rblr(int cmd) {
 
 	int i, x, y, xs, ys, xc = input.width / 2, yc = input.height / 2;
 	int sample_count = input.width * 0.1;
-	float factor, angle, distance, r, g, b;
+	float factor, angle, distance, r, g, b, a;
     rafgl_pixel_rgb_t src, dst;
 
 	rafgl_raster_init(&aux, input.width, input.height);	
 
     for(y = 0; y < input.height; y++) {
         for(x = 0; x < input.width; x++) {
-            r = g = b = 0;
+            r = g = b = a = 0;
             
 			factor = 0.0f;
             angle = atan2(y - yc, x - xc);
@@ -393,6 +402,7 @@ void command_rblr(int cmd) {
 				r += src.r;
                 g += src.g;
                 b += src.b;
+                a += src.a;
 				
 				factor += 1.0f / sample_count;
             }
@@ -400,6 +410,7 @@ void command_rblr(int cmd) {
             dst.r = r / sample_count;
             dst.g = g / sample_count;
             dst.b = b / sample_count;
+            dst.a = a / sample_count;
 
             pixel_at_m(aux, x, y) = dst;
         }
@@ -417,7 +428,7 @@ void command_zblr(int cmd) {
 
 	int i, x, y, xs, ys, xd, yd, xc = input.width / 2, yc = input.height / 2;
 	int sample_count = input.width * 0.1;
-	float factor, r, g, b;
+	float factor, r, g, b, a;
     rafgl_pixel_rgb_t src, dst;
 
 	rafgl_raster_init(&aux, input.width, input.height);	
@@ -427,7 +438,7 @@ void command_zblr(int cmd) {
             xd = x - xc;
             yd = y - yc;
 
-            r = g = b = 0;
+            r = g = b = a = 0;
             
 			factor = -1.0f;
 
@@ -440,6 +451,7 @@ void command_zblr(int cmd) {
 				r += src.r;
                 g += src.g;
                 b += src.b;
+                a += src.a;
 				
 				factor += 2.0f / sample_count;
             }
@@ -447,6 +459,7 @@ void command_zblr(int cmd) {
             dst.r = r / sample_count;
             dst.g = g / sample_count;
             dst.b = b / sample_count;
+            dst.a = a / sample_count;
 
             pixel_at_m(aux, x, y) = dst;
         }

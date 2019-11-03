@@ -5,6 +5,8 @@
 #include <main_state.h>
 #include <commands.h>
 
+// TODO Handle button hold (create released flag)
+
 #define BUTTON_HEIGHT 100
 #define BUTTON_WIDTH (raster_width >> 1)
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
@@ -125,7 +127,7 @@ void image_update() {
             xn = 1.0f * x / raster_width;
             
             pixel_at_m(output, x, y) = rafgl_point_sample(&input, xn, yn);
-        }
+		}
     }
 
 	if(!interactive) {
