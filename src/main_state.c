@@ -127,15 +127,29 @@ void image_update() {
             pixel_at_m(output, x, y) = rafgl_point_sample(&input, xn, yn);
         }
     }
+
+	if(!interactive) {
+		rafgl_raster_save_to_png(&input, images[img_id][1]);
+		image_reload();
+	}
 }
 
 void image_reload() {
 	if(img_id++ < img_total) {
 		image_init();
+	}else {
+		if(!interactive) {
+			rafgl_game_destroy();
+			exit(EXIT_SUCCESS);
+		}
 	}
 }
 
 void buttons_init() {
+	if(!interactive) {
+		return;
+	}
+	
 	rafgl_button_init(&btn_reject, 0, raster_height - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_REJECT);
 	rafgl_button_init(&btn_accept, BUTTON_WIDTH, raster_height - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
 
@@ -143,17 +157,21 @@ void buttons_init() {
 }
 
 void buttons_update(rafgl_game_data_t* game_data) {
+	if(!interactive) {
+		return;
+	}
+	
 	btn_reject.pressed = rafgl_button_check(&btn_reject, game_data);
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
 	if(btn_accept.pressed && !accepted) {
-        rafgl_raster_save_to_png(&input, images[img_id][1]);
 		accepted = 1;
-		
+		rafgl_raster_save_to_png(&input, images[img_id][1]);
 		image_reload();
 	}
 
 	if(btn_reject.pressed && !rejected) {
+		rejected = 1;
 		image_reload();
 	}
 
@@ -166,8 +184,8 @@ void buttons_update(rafgl_game_data_t* game_data) {
 
 void main_state_init(GLFWwindow *window, void* args) {
 	image_init();
-	buttons_init();
-    rafgl_texture_init(&texture);
+	buttons_init(); 
+	rafgl_texture_init(&texture);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void* args) {

@@ -109,6 +109,7 @@ typedef struct _rafgl_button_t
 
 /* initializes the GLFW library, GLEW and the window. If full-screen mode is selected, width and hight are unused and the monitor resolution is used instead */
 int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int window_height, int fullscreen);
+int rafgl_game_destroy();
 /* creates a new game state based on the appropriate function pointers */
 void rafgl_game_add_game_state(rafgl_game_t *game, void (*init)(GLFWwindow *window, void *args), void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args), void (*render)(GLFWwindow *window, void *args), void (*cleanup)(GLFWwindow *window, void *args));
 
@@ -377,6 +378,11 @@ int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int
     return 0;
 }
 
+int rafgl_game_destroy() {
+	glfwDestroyWindow(__window);
+	
+	return 0;
+}
 
 int rafgl_raster_init(rafgl_raster_t *raster, int width, int height)
 {
