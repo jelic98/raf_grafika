@@ -64,8 +64,8 @@
 1. _int_ __radius__: Effect radius
 
 ### RBLR - _Apply radial blur effect_
-1. _int_ __intensity__: Effect intensity
+1. _float_ __intensity__: Effect intensity
 
 ### ZBLR - _Apply zoom blur effect_
-1. _int_ __intensity__: Effect intensity
+1. _float_ __intensity__: Effect intensity
 
