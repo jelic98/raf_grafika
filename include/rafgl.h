@@ -125,7 +125,7 @@ int rafgl_raster_save_to_png(rafgl_raster_t *raster, const char *image_path);
 int rafgl_raster_cleanup(rafgl_raster_t *raster);
 
 void rafgl_spritesheet_init(rafgl_spritesheet_t *spritesheet, const char *sheet_path, int sheet_width, int sheet_height);
-void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *spritesheet, int sheet_x, int sheet_y, int x, int y);
+void rafgl_raster_draw_spritesheet(rafgl_raster_t *raster, rafgl_spritesheet_t *spritesheet, int sheet_x, int sheet_y, int x, int y, float scale);
 
 int rafgl_brightness(rafgl_pixel_rgb_t);
 int rafgl_saturate(int);
@@ -410,27 +410,34 @@ void rafgl_spritesheet_init(rafgl_spritesheet_t *spritesheet, const char *sheet_
     spritesheet->frame_height = spritesheet->sheet.height / sheet_height;
 }
 
-void rafgl_raster_draw_spritesheet(rafgl_raster_t* raster, rafgl_spritesheet_t* spritesheet, int sheet_x, int sheet_y, int x, int y) {
+void rafgl_raster_draw_spritesheet(rafgl_raster_t* raster, rafgl_spritesheet_t* spritesheet, int sheet_x, int sheet_y, int x, int y, float scale) {
     int fl, fr, fu, fd;
     int flc, frc, fuc, fdc;
     int xi, yi;
+    float xn, yn;
 	
     rafgl_pixel_rgb_t sampled;
 
-    fl = x;
-    fr = x + spritesheet->frame_width;
-    fu = y;
-    fd = y + spritesheet->frame_height;
+    fl = x - spritesheet->frame_width * (scale - 1);
+    fr = x + spritesheet->frame_width * scale;
+    fu = y - spritesheet->frame_height * (scale - 1);
+    fd = y + spritesheet->frame_height * scale;
 	
     flc = rafgl_max_m(fl, 0);
     frc = rafgl_min_m(fr, raster->width);
     fuc = rafgl_max_m(fu, 0);
     fdc = rafgl_min_m(fd, raster->height);
-	
+
     for(yi = fuc; yi < fdc; yi++) {
-        for(xi = flc; xi < frc; xi++) {
-            sampled = pixel_at_m(spritesheet->sheet, sheet_x * spritesheet->frame_width + xi - fl, sheet_y * spritesheet->frame_height + yi - fu);
-            
+        yn = 1.0f * (yi - fu) / (fdc - fuc);
+        
+		for(xi = flc; xi < frc; xi++) {
+            xn = 1.0f * (xi - fl) / (frc - flc);
+
+			sampled = rafgl_point_sample(&spritesheet->sheet,
+					1.0f * sheet_x / spritesheet->sheet_width + xn / spritesheet->sheet_width,
+					1.0f * sheet_y / spritesheet->sheet_height + yn / spritesheet->sheet_height);
+			
 			if(sampled.rgba != RAFGL_COLOUR_KEY.rgba) {
                 pixel_at_pm(raster, xi, yi) = sampled;
             }
