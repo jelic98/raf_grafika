@@ -15,8 +15,8 @@ void command_load(int cmd) {
 	}
 
 	rafgl_raster_load_from_image(&input, images[img_id][0]);
-	// TODO rafgl_raster_init(&output, raster_width = input.width, raster_height = input.height);
-	rafgl_raster_init(&output, raster_width, raster_height);
+	rafgl_raster_init(&output, raster_width = input.width, raster_height = input.height);
+	rafgl_window_resize(input.width, input.height);
 }
 
 void command_line(int cmd) {
@@ -71,15 +71,15 @@ void command_inst(int cmd) {
 void command_rota(int cmd) {
 	int x, y;
 
-	// TODO Update raster dimensions for non-square images
-
-	rafgl_raster_init(&aux, input.width, input.height);	
+	rafgl_raster_init(&aux, input.height, input.width);	
  
 	for(y = 0; y < input.height; y++) {
         for(x = 0; x < input.width; x++) {
-            pixel_at_m(aux, x, y) = pixel_at_m(input, y, input.width - x - 1);
+            pixel_at_m(aux, y, x) = pixel_at_m(input, x, y);
         }
     }
+	
+	rafgl_raster_init(&input, aux.width, aux.height);
 
 	for(y = 0; y < input.height; y++) {
         for(x = 0; x < input.width; x++) {

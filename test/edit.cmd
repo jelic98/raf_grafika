@@ -1,6 +1,6 @@
-LOAD test/test1.png test/test1_new.png
 LOAD test/test2.png test/test2_new.png
-#ROTA
+LOAD test/test1.png test/test1_new.png
+ROTA
 #FLPV
 #FLPH
 #NGTV

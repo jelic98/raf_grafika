@@ -107,6 +107,7 @@ typedef struct _rafgl_button_t
     uint32_t colour;
 }rafgl_button_t;
 
+void rafgl_window_resize(int, int);
 /* initializes the GLFW library, GLEW and the window. If full-screen mode is selected, width and hight are unused and the monitor resolution is used instead */
 int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int window_height, int fullscreen);
 int rafgl_game_destroy();
@@ -290,6 +291,11 @@ void __key_callback(GLFWwindow* window, int key, int scancode, int action, int m
 void __error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error: %s\n", description);
+}
+
+void rafgl_window_resize(int w, int h) {
+	printf("RESIZE %d %d\n", w, h);	
+	glfwSetWindowSize(__window, w, h);
 }
 
 int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int window_height, int fullscreen)
