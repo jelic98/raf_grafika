@@ -294,7 +294,6 @@ void __error_callback(int error, const char* description)
 }
 
 void rafgl_window_resize(int w, int h) {
-	printf("RESIZE %d %d\n", w, h);	
 	glfwSetWindowSize(__window, w, h);
 }
 

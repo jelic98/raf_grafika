@@ -12,7 +12,7 @@ void main_state_cleanup(GLFWwindow *window, void *args);
 void args_parse(int, char**);
 void command_parse();
 void image_init();
-void image_update();
+void image_update(rafgl_game_data_t*);
 void image_reload();
 void buttons_init();
 void buttons_update(rafgl_game_data_t*);

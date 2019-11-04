@@ -115,9 +115,11 @@ void image_init() {
 	reject_released = 0;	
 	
 	command_parse();
+	
+	buttons_init(); 
 }
 
-void image_update() {
+void image_update(rafgl_game_data_t* game_data) {
 	int x, y;
     float xn, yn;
 	
@@ -135,6 +137,8 @@ void image_update() {
 		rafgl_raster_save_to_png(&input, images[img_id][1]);
 		image_reload();
 	}
+	
+	buttons_update(game_data);
 }
 
 void image_reload() {
@@ -189,13 +193,11 @@ void buttons_update(rafgl_game_data_t* game_data) {
 
 void main_state_init(GLFWwindow *window, void* args) {
 	image_init();
-	buttons_init(); 
 	rafgl_texture_init(&texture);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void* args) {
-	image_update();
-	buttons_update(game_data);
+	image_update(game_data);
 	rafgl_texture_load_from_raster(&texture, &output);
 }
 
