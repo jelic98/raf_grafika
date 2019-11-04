@@ -1,5 +1,5 @@
-LOAD test/test2.png test/test2_new.png
 LOAD test/test1.png test/test1_new.png
+LOAD test/test2.png test/test2_new.png
 ROTA
 #FLPV
 #FLPH
@@ -9,6 +9,7 @@ ROTA
 #BLWH 180
 #AUTO
 #VIGN 0.5 0.5 0.9
+SLCT BRIG
 INST test/small.png 10 25 200 100
 #LINE 50 100 200 200 000FF00FF
 #RECT 200 200 150 50 00FF00FF FF0000FF

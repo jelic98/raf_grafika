@@ -1,4 +1,6 @@
 #include <rafgl.h>
+
+#define COMMANDS_H_INIT
 #include <commands.h>
 
 void command_load(int cmd) {
@@ -16,7 +18,50 @@ void command_load(int cmd) {
 
 	rafgl_raster_load_from_image(&input, images[img_id][0]);
 	rafgl_raster_init(&output, raster_width = input.width, raster_height = input.height);
+	rafgl_raster_init(&copy, input.width, input.height);
 	rafgl_window_resize(input.width, input.height);
+
+	int x, y;
+
+	for(y = 0; y < copy.height; y++) {
+		for(x = 0; x < copy.width; x++) {
+			pixel_at_m(copy, x, y) = pixel_at_m(input, x, y);
+       	}
+	}
+}
+
+void command_slct(int cmd) {
+	char* effect = args[cmd][1];
+
+	int i = -1;
+
+	while(*commands[++i].key) {
+		if(!strcmp(effect, commands[i].key)) {
+			select = i;
+			break;
+		}
+	}
+}
+
+void command_brig(int cmd) {
+	float a = strtof(args[cmd][1], NULL);
+	
+	int x, y, delta = a * 200 - 100;
+
+	rafgl_pixel_rgb_t src, dst;
+
+    for(y = 0; y < input.height; y++) {
+        for(x = 0; x < input.width; x++) {
+            src = pixel_at_m(input, x, y);
+
+			dst.r = rafgl_saturate(src.r + delta);
+			dst.g = rafgl_saturate(src.g + delta);
+			dst.b = rafgl_saturate(src.b + delta);
+			dst.a = src.a;
+            
+			pixel_at_m(input, x, y) = dst;
+        }
+    }
 }
 
 void command_line(int cmd) {

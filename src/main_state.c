@@ -3,15 +3,20 @@
 #include <glad/glad.h>
 #include <rafgl.h>
 #include <main_state.h>
-#include <commands.h>
 
-#define BUTTON_HEIGHT 100
 #define BUTTON_WIDTH (raster_width >> 1)
+#define BUTTON_HEIGHT 100
+#define SELECTOR_WIDTH 15
+#define SELECTOR_HEIGHT 3
 #define COLOR_REJECT rafgl_RGB(255, 0, 0)
 #define COLOR_ACCEPT rafgl_RGB(0, 255, 0)
+#define COLOR_SELECTOR rafgl_RGB(0, 0, 255)
 #define SS_BUTTONS_PATH "res/buttons.png"
 #define SS_BUTTON_WIDTH 2
 #define SS_BUTTON_HEIGHT 1
+#define SS_SELECTOR_PATH "res/selector.png"
+#define SS_SELECTOR_WIDTH 1
+#define SS_SELECTOR_HEIGHT 1
 #define ERROR_ARGS "Error occured while parsing arguments\n"
 #define ERROR_COMMAND "Error occured while parsing command file\n"
 #define FLAG_INTERACTIVE "-i"
@@ -19,29 +24,10 @@
 
 static rafgl_texture_t texture;
 static rafgl_button_t btn_reject, btn_accept;
-static rafgl_spritesheet_t ss_buttons;
-static int interactive, reject_pressed, accept_pressed, reject_released, accept_released;
+static rafgl_spritesheet_t ss_buttons, ss_selector;
+static int interactive, reject_pressed, accept_pressed, reject_released, accept_released, selector_pressed;
+static float selector = 0.5;
 static char command_file[PATH_LENGTH];
-
-static command_t commands[] = {
-	{"LOAD", &command_load},
-	{"LINE", &command_line},
-	{"CIRC", &command_circ},
-	{"RECT", &command_rect},
-	{"INST", &command_inst},
-	{"ROTA", &command_rota},
-	{"FLPV", &command_flpv},
-	{"FLPH", &command_flph},
-	{"EDGE", &command_edge},
-	{"AUTO", &command_auto},
-	{"NGTV", &command_ngtv},
-	{"GRAY", &command_gray},
-	{"BLWH", &command_blwh},
-	{"VIGN", &command_vign},
-	{"BBLR", &command_bblr},
-	{"RBLR", &command_rblr},
-	{"ZBLR", &command_zblr}
-};
 
 void args_parse(int argc, char* argv[]) {
 	if(argc < 2) {
@@ -60,7 +46,7 @@ void args_parse(int argc, char* argv[]) {
 	}
 }
 
-void command_parse()  {
+void commands_parse()  {
 	static int initialized = 0;
 
 	if(!initialized) {
@@ -88,6 +74,8 @@ void command_parse()  {
 			}
 		}
 
+		cmd_total = i;
+
 		if(fclose(fin) == EOF) {
 			fprintf(stderr, ERROR_COMMAND);
 		}
@@ -95,7 +83,7 @@ void command_parse()  {
 		initialized = 1;
 	}
 
-	int i = -1, j;
+	int i = -1, j = -1;
 	
 	while(j = -1, **args[++i]) {
 		while(*commands[++j].key && **args[i] != COMMENT_CHAR) {
@@ -110,12 +98,10 @@ void command_parse()  {
 void image_init() {	
 	accept_pressed = 0;
 	reject_pressed = 0;	
-	
 	accept_released = 0;
 	reject_released = 0;	
 	
-	command_parse();
-	
+	commands_parse();
 	buttons_init(); 
 }
 
@@ -133,12 +119,25 @@ void image_update(rafgl_game_data_t* game_data) {
 		}
     }
 
-	if(!interactive) {
+	if(interactive) {
+		selector_update(game_data);
+
+		if(select > 0) {
+			for(y = 0; y < input.height; y++) {
+    	 	   for(x = 0; x < input.width; x++) {
+        	    	pixel_at_m(input, x, y) = pixel_at_m(copy, x, y);
+        		}
+		    }
+			
+			sprintf(args[cmd_total][1], "%f", selector);
+			commands[select].fun(cmd_total);
+		}
+
+		buttons_update(game_data);
+	}else {
 		rafgl_raster_save_to_png(&input, images[img_id][1]);
 		image_reload();
 	}
-	
-	buttons_update(game_data);
 }
 
 void image_reload() {
@@ -159,13 +158,14 @@ void buttons_init() {
 	rafgl_button_init(&btn_accept, BUTTON_WIDTH, raster_height - BUTTON_HEIGHT, BUTTON_WIDTH, BUTTON_HEIGHT, COLOR_ACCEPT);
 
 	rafgl_spritesheet_init(&ss_buttons, SS_BUTTONS_PATH, SS_BUTTON_WIDTH, SS_BUTTON_HEIGHT);
+	rafgl_spritesheet_init(&ss_selector, SS_SELECTOR_PATH, SS_SELECTOR_WIDTH, SS_SELECTOR_HEIGHT);
 }
 
 void buttons_update(rafgl_game_data_t* game_data) {
 	if(!interactive) {
 		return;
 	}
-	
+
 	btn_reject.pressed = rafgl_button_check(&btn_reject, game_data);
 	btn_accept.pressed = rafgl_button_check(&btn_accept, game_data);
 
@@ -187,8 +187,23 @@ void buttons_update(rafgl_game_data_t* game_data) {
 	rafgl_button_show(&output, &btn_reject);
 	rafgl_button_show(&output, &btn_accept);
 
-	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 0, 0, (BUTTON_WIDTH) + (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2, 0.8f);
-	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 1, 0, (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2, 1.2f);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 0, 0, (BUTTON_WIDTH) + (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2, 1.0f);
+	rafgl_raster_draw_spritesheet(&output, &ss_buttons, 1, 0, (BUTTON_WIDTH / 2) - ss_buttons.frame_width / 2, raster_height - BUTTON_HEIGHT / 2 - ss_buttons.frame_height / 2, 1.0f);
+}
+
+void selector_update(rafgl_game_data_t* game_data) {
+	if(!interactive) {
+		return;
+	}
+	
+	selector_pressed = game_data->is_lmb_down && game_data->mouse_pos_y < raster_height - BUTTON_HEIGHT;
+
+	if(selector_pressed) {
+		int x = rafgl_clampi(game_data->mouse_pos_x, 0, raster_width);
+		selector = 1.0f * x / raster_width;
+		x = rafgl_clampi(game_data->mouse_pos_x - ss_selector.frame_width / 2, 0, raster_width - ss_selector.frame_width);
+		rafgl_raster_draw_spritesheet(&output, &ss_selector, 0, 0, x, raster_height - BUTTON_HEIGHT - ss_selector.frame_height, 1.0f);
+	}
 }
 
 void main_state_init(GLFWwindow *window, void* args) {
