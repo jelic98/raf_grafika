@@ -93,6 +93,14 @@ void commands_parse()  {
 			}
 		}
 	}
+
+	int x, y;
+
+	for(y = 0; y < copy.height; y++) {
+		for(x = 0; x < copy.width; x++) {
+			pixel_at_m(copy, x, y) = pixel_at_m(input, x, y);
+       	}
+	}
 }
 
 void image_init() {	

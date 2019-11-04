@@ -20,14 +20,6 @@ void command_load(int cmd) {
 	rafgl_raster_init(&output, raster_width = input.width, raster_height = input.height);
 	rafgl_raster_init(&copy, input.width, input.height);
 	rafgl_window_resize(input.width, input.height);
-
-	int x, y;
-
-	for(y = 0; y < copy.height; y++) {
-		for(x = 0; x < copy.width; x++) {
-			pixel_at_m(copy, x, y) = pixel_at_m(input, x, y);
-       	}
-	}
 }
 
 void command_slct(int cmd) {
