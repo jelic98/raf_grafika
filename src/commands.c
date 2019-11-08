@@ -22,6 +22,24 @@ void command_load(int cmd) {
 	rafgl_window_resize(input.width, input.height);
 }
 
+void command_inst(int cmd) {
+	char* path = args[cmd][1];
+	int x0 = strtol(args[cmd][2], NULL, 10);
+	int y0 = strtol(args[cmd][3], NULL, 10);
+	int w = strtol(args[cmd][4], NULL, 10);
+	int h = strtol(args[cmd][5], NULL, 10);
+
+	rafgl_raster_load_from_image(&aux, path);
+    
+	int x, y;
+	
+    for(y = 0; y < h; y++) {
+        for(x = 0; x < w; x++) {
+            pixel_at_m(input, x0 + x, y0 + y) = rafgl_point_sample(&aux, 1.0f * x / w, 1.0f * y / h);
+        }
+    }
+}
+
 void command_slct(int cmd) {
 	char* effect = args[cmd][1];
 
@@ -36,9 +54,9 @@ void command_slct(int cmd) {
 }
 
 void command_brig(int cmd) {
-	float a = strtof(args[cmd][1], NULL);
+	float value = strtof(args[cmd][1], NULL);
 	
-	int x, y, delta = a * 200 - 100;
+	int x, y, delta = value * 200 - 100;
 
 	rafgl_pixel_rgb_t src, dst;
 
@@ -85,24 +103,6 @@ void command_rect(int cmd) {
 	uint32_t fill = strtol(args[cmd][6], NULL, 16);
 
 	rafgl_raster_draw_rectangle(&input, x0, y0, w, h, rafgl_HEX(stroke), rafgl_HEX(fill));
-}
-
-void command_inst(int cmd) {
-	char* path = args[cmd][1];
-	int x0 = strtol(args[cmd][2], NULL, 10);
-	int y0 = strtol(args[cmd][3], NULL, 10);
-	int w = strtol(args[cmd][4], NULL, 10);
-	int h = strtol(args[cmd][5], NULL, 10);
-
-	rafgl_raster_load_from_image(&aux, path);
-    
-	int x, y;
-	
-    for(y = 0; y < h; y++) {
-        for(x = 0; x < w; x++) {
-            pixel_at_m(input, x0 + x, y0 + y) = rafgl_point_sample(&aux, 1.0f * x / w, 1.0f * y / h);
-        }
-    }
 }
 
 void command_rota(int cmd) {

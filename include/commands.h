@@ -44,12 +44,12 @@ void command_zblr(int);
 int select = -1;
 command_t commands[] = {
 	{"LOAD", &command_load},
+	{"INST", &command_inst},
 	{"SLCT", &command_slct},
 	{"BRIG", &command_brig},
 	{"LINE", &command_line},
 	{"CIRC", &command_circ},
 	{"RECT", &command_rect},
-	{"INST", &command_inst},
 	{"ROTA", &command_rota},
 	{"FLPV", &command_flpv},
 	{"FLPH", &command_flph},

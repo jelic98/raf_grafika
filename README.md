@@ -9,6 +9,12 @@
 4. _int_ __w__: Rectangle width in which image will be inserted
 5. _int_ __h__: Rectangle height in which image will be inserted
 
+### SLCT - _Select effect intensity interactively_
+1. _effect_ __effect__: Effect name that will be used in interactive selection
+
+### BRIG - _Adjust image brightness_
+1. _float_ __value__: Brightness value
+
 ### LINE - _Draw line_
 1. _int_ __x0__: Starting point x coordinate
 2. _int_ __y0__: Starting point y coordinate
