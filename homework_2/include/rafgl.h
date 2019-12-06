@@ -181,8 +181,11 @@ typedef struct _rafgl_framebuffer_simple_t
 /* initializes the GLFW library, GLEW and the window. If full-screen mode is selected, width and hight are unused and the monitor resolution is used instead */
 int rafgl_game_init(rafgl_game_t *game, const char *title, int window_width, int window_height, int fullscreen);
 /* creates a new game state based on the appropriate function pointers */
-void rafgl_game_add_game_state(rafgl_game_t *game, void (*init)(GLFWwindow *window, void *args), void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args), void (*render)(GLFWwindow *window, void *args), void (*cleanup)(GLFWwindow *window, void *args));
-
+void rafgl_game_add_game_state(rafgl_game_t *game,
+		void (*init)(GLFWwindow *window, void *args, int width, int height),
+		void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args),
+		void (*render)(GLFWwindow *window, void *args),
+		void (*cleanup)(GLFWwindow *window, void *args));
 void rafgl_window_set_title(const char *name);
 
 /* allocates and NULLs the needed memory for the raster */
@@ -229,6 +232,10 @@ GLuint rafgl_program_create(const char *vertex_source_filepath, const char *frag
 GLuint rafgl_program_create_from_source(const char *vertex_source, const char *fragment_source);
 /* creates a shader program from vertex and fragment files with standardized names and locations */
 GLuint rafgl_program_create_from_name(const char *program_name);
+
+float cosine_interpolationf(float a, float b, float s);
+void cosine_float_map_rescale(float* dst, int dst_width, int dst_height, float* src, int src_width, int src_height);
+void float_map_multiply_and_add(float* dst, float* src, int w, int h, float multiplier);
 
 /* generic linked list */
 int rafgl_list_init(rafgl_list_t *list, int element_size);
@@ -280,7 +287,7 @@ int rafgl_button_check(rafgl_button_t *btn, rafgl_game_data_t *game_data);
 
 void rafgl_raster_box_blur(rafgl_raster_t *result, rafgl_raster_t *tmp, rafgl_raster_t *from, int radius);
 
-int rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, int y);
+void rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, int y);
 
 void rafgl_raster_draw_line(rafgl_raster_t *raster, int x0, int y0, int x1, int y1, uint32_t colour);
 void rafgl_raster_draw_circle(rafgl_raster_t *raster, int cx, int cy, int r, uint32_t colour);
@@ -288,7 +295,7 @@ void rafgl_raster_draw_rectangle(rafgl_raster_t *raster, int x0, int y0, int w, 
 
 void rafgl_raster_bilinear_upsample(rafgl_raster_t *to, rafgl_raster_t *from);
 
-int rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y, uint32_t colour, int font_size);
+void rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y, uint32_t colour, int font_size);
 
 void rafgl_log_fps(int b);
 
@@ -552,11 +559,11 @@ void __rafgl_raster_draw_spritesheet_text(rafgl_raster_t *raster, rafgl_spritesh
 
 }
 
-
-int rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y, uint32_t colour, int font_size)
+void rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y, uint32_t colour, int font_size)
 {
 
-    char c, i = 0, index, xt, yt, ox = 0, oy = 0;
+    char c;
+	int i = 0, index, xt, yt, ox = 0, oy = 0;
     while((c = s[i++]) != '\0')
     {
         if(c == '\n')
@@ -564,7 +571,7 @@ int rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y
             ox = -1;
             oy++;
         }
-        if(c < 32 || c >= 128)
+        if(c < 32)
         {
             ox++;
             continue;
@@ -576,10 +583,6 @@ int rafgl_raster_draw_string(rafgl_raster_t *raster, const char *s, int x, int y
 
         __rafgl_raster_draw_spritesheet_text(raster, &__mono_char_sheet[font_size % 3], xt, yt, x + ox * __mono_char_sheet[font_size % 3].frame_width, y + oy * __mono_char_sheet[font_size % 3].frame_height, colour);
         ox++;
-
-
-
-
     }
 }
 
@@ -682,7 +685,7 @@ int rafgl_raster_save_to_png(rafgl_raster_t *raster, const char *image_path)
 void rafgl_raster_box_blur(rafgl_raster_t *result, rafgl_raster_t *tmp, rafgl_raster_t *from, int radius)
 {
     int x, y;
-    float xn, yn, offset;
+    float offset;
     int sample_count = 2 * radius + 1;
 
     rafgl_pixel_rgb_t sampled, resulting;
@@ -736,7 +739,7 @@ void rafgl_raster_box_blur(rafgl_raster_t *result, rafgl_raster_t *tmp, rafgl_ra
     }
 }
 
-int rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, int y)
+void rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, int y)
 {
 
     int fl, fr, fu, fd;
@@ -766,8 +769,6 @@ int rafgl_raster_draw_raster(rafgl_raster_t *to, rafgl_raster_t *from, int x, in
             }
         }
     }
-
-
 }
 
 /* Cohen-Sutherland line clipping algorithm constants */
@@ -934,8 +935,11 @@ void rafgl_raster_bilinear_upsample(rafgl_raster_t *to, rafgl_raster_t *from)
     }
 }
 
-
-void rafgl_game_add_game_state(rafgl_game_t *game, void (*init)(GLFWwindow *window, void *args), void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args), void (*render)(GLFWwindow *window, void *args), void (*cleanup)(GLFWwindow *window, void *args))
+void rafgl_game_add_game_state(rafgl_game_t *game,
+		void (*init)(GLFWwindow *window, void *args, int width, int height),
+		void (*update)(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args),
+		void (*render)(GLFWwindow *window, void *args),
+		void (*cleanup)(GLFWwindow *window, void *args))
 {
     rafgl_game_state_t state;
     state.init = init;
@@ -1108,7 +1112,7 @@ void rafgl_button_show(rafgl_raster_t *target, rafgl_button_t *btn)
 
 inline float randf(void)
 {
-    return 1.0f * rand() / (RAND_MAX + 1);
+    return 1.0f * rand();
 }
 
 inline float rafgl_distance1D(float x1, float x2)
@@ -1317,7 +1321,7 @@ void rafgl_texture_load_cubemap_named(rafgl_texture_t *tex, const char *cubemap_
         strcat(cubemap_paths[i], file_ext);
     }
 
-    rafgl_texture_load_cubemap(tex, pcubemap_paths);
+    rafgl_texture_load_cubemap(tex, (const char**) pcubemap_paths);
 }
 
 void rafgl_texture_load_cubemap(rafgl_texture_t *tex, const char *cubemap_paths[])
@@ -1680,7 +1684,7 @@ void rafgl_meshPUN_load_from_OBJ_offset(rafgl_meshPUN_t *m, const char *obj_path
     /* GL BUFFER DATA */
 
 	int vao;
-	glGenVertexArrays(1, &vao);
+	glGenVertexArrays(1, (GLuint*) &vao);
 
 	m -> vao_id = vao;
 	m -> vertex_count = vcount;
@@ -1689,7 +1693,7 @@ void rafgl_meshPUN_load_from_OBJ_offset(rafgl_meshPUN_t *m, const char *obj_path
 	glBindVertexArray(vao);
 
 	int data_buffer;
-	glGenBuffers(1, &data_buffer);
+	glGenBuffers(1, (GLuint*) &data_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, data_buffer);
 	glBufferData(GL_ARRAY_BUFFER, vcount * sizeof(rafgl_vertexPUN_t), vertex_buffer, GL_STATIC_DRAW);
 
@@ -1944,6 +1948,62 @@ GLuint rafgl_program_create_from_name(const char *program_name)
     strcat(f, SYSTEM_SEPARATOR "frag.glsl");
 
     return rafgl_program_create(v, f);
+}
+
+float cosine_interpolationf(float a, float b, float s) {
+	float f = (1.0f - cosf(s * M_PI)) * 0.5f;
+	return a + (b - a) * f;
+}
+
+void cosine_float_map_rescale(float* dst, int dst_width, int dst_height, float* src, int src_width, int src_height) {
+	int x, y;
+	float xn, yn;
+	float fxs, fys;
+	int ixs0, iys0;
+	int ixs1, iys1;
+	float upper_middle, lower_middle;
+	float sample_left, sample_right;
+	float result;
+
+	for(y = 0; y < dst_height; y++) {
+		yn = 1.0f * y / dst_height;
+		fys = yn * src_height;
+		iys0 = fys;
+		iys1 = iys0 + 1;
+		fys -= iys0;
+		if(iys1 >= src_height)
+			iys1 = src_height - 1;
+		for(x = 0; x < dst_width; x++) {
+			xn = 1.0f * x / dst_width;
+			fxs = xn * src_width;
+			ixs0 = fxs;
+			ixs1 = ixs0 + 1;
+			if(ixs1 >= src_width)
+				ixs1 = src_width - 1;
+			fxs -= ixs0;
+
+			sample_left = src[iys0 * src_width + ixs0];
+			sample_right = src[iys0 * src_width + ixs1];
+			upper_middle = cosine_interpolationf(sample_left, sample_right, fxs);
+
+			sample_left = src[iys1 * src_width + ixs0];
+			sample_right = src[iys1 * src_width + ixs1];
+			lower_middle = cosine_interpolationf(sample_left, sample_right, fxs);
+
+			result = cosine_interpolationf(upper_middle, lower_middle, fys);
+
+			dst[y * dst_width + x] = result;
+		}
+	}
+}
+
+void float_map_multiply_and_add(float* dst, float* src, int w, int h, float multiplier) {
+	int x, y;
+	for(y = 0; y < h; y++) {
+		for(x = 0; x < w; x++) {
+			dst[y * w + x] += src[y * w + x] * multiplier;
+		}
+	}
 }
 
 /*
