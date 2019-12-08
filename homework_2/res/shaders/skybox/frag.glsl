@@ -1,11 +1,11 @@
 #version 410
 
-out vec4 final_colour;
+out vec4 out_color;
 
-in vec3 tex_coords;
+uniform samplerCube uni_skybox;
 
-uniform samplerCube skybox;
+in vec3 pass_tex;
 
 void main() {
-    final_colour = texture(skybox, tex_coords);
+    out_color = texture(uni_skybox, pass_tex);
 }
