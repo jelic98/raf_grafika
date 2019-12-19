@@ -9,9 +9,6 @@
 #define TOTAL_STAGES 5
 #define TOTAL_UNIFORMS 10
 #define TOTAL_MESHES 1
-#define SSAO_RADIUS 0.6f
-#define SSAO_BIAS 0.003f
-#define SSAO_POWER 0.8f
 #define LENGTH_NAME 128
 #define FIELD_OF_VIEW 75.0f
 
@@ -47,106 +44,212 @@ static float speed_move = 5.0f;
 
 static int flag_rotate = 0;
 
-static GLuint smp_position, smp_normal, smp_noise, smp_kernel;
-static GLuint tex_position, tex_normal, tex_noise, tex_kernel;
+static GLuint tex_position, smp_position;
+static GLuint tex_normal, smp_normal;
+static GLuint tex_color, smp_color;
+static GLuint tex_noise, smp_noise;
+static GLuint tex_ssao, smp_ssao;
+static GLuint tex_blur, smp_blur;
 
 void init_preprocess(int width, int height) {
 	stages[0].shader = rafgl_program_create_from_name("pipeline/preprocess");
 	stages[0].uni[0] = glGetUniformLocation(stages[0].shader, "uni_m");
-	stages[0].uni[1] = glGetUniformLocation(stages[0].shader, "uni_vp");
-	stages[0].fbo = rafgl_framebuffer_simple_create(width, height);    
-	
+	stages[0].uni[1] = glGetUniformLocation(stages[0].shader, "uni_v");
+	stages[0].uni[2] = glGetUniformLocation(stages[0].shader, "uni_p");
+	stages[0].fbo = rafgl_framebuffer_simple_create(width, height);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[0].fbo.fbo_id);
-    
+
 	glGenTextures(1, &tex_position);
-    glBindTexture(GL_TEXTURE_2D, tex_position);
-   	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_position, 0);
+	glBindTexture(GL_TEXTURE_2D, tex_position);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_position, 0);
 
 	glGenTextures(1, &tex_normal);
-    glBindTexture(GL_TEXTURE_2D, tex_normal);
-   	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex_normal, 0);
+	glBindTexture(GL_TEXTURE_2D, tex_normal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, tex_normal, 0);
+
+	glGenTextures(1, &tex_color);
+	glBindTexture(GL_TEXTURE_2D, tex_color);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, tex_color, 0);
+
+	GLuint buffers[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+
+	glDrawBuffers(3, buffers);
+}
+
+void render_preprocess() {
+	glBindFramebuffer(GL_FRAMEBUFFER, stages[0].fbo.fbo_id);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(stages[0].shader);
+	glUniformMatrix4fv(stages[0].uni[0], 1, GL_FALSE, (void*) model.m);
+	glUniformMatrix4fv(stages[0].uni[1], 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(stages[0].uni[2], 1, GL_FALSE, (void*) projection.m);
+
+	glBindVertexArray(meshes[current_mesh].vao_id);
+	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void init_ssao(int width, int height) {
 	stages[1].shader = rafgl_program_create_from_name("pipeline/ssao");
-	stages[1].uni[0] = glGetUniformLocation(stages[1].shader, "uni_m");
-	stages[1].uni[1] = glGetUniformLocation(stages[1].shader, "uni_vp");
-	stages[1].uni[2] = glGetUniformLocation(stages[1].shader, "uni_p");
-	stages[1].uni[3] = glGetUniformLocation(stages[1].shader, "uni_radius");
-	stages[1].uni[4] = glGetUniformLocation(stages[1].shader, "uni_bias");
-	stages[1].uni[5] = glGetUniformLocation(stages[1].shader, "uni_power");
-	stages[1].fbo = rafgl_framebuffer_simple_create(width, height);	
+	stages[1].uni[0] = glGetUniformLocation(stages[1].shader, "uni_p");
+	stages[1].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
 
 	smp_position = glGetUniformLocation(stages[1].shader, "smp_position");
 	smp_normal = glGetUniformLocation(stages[1].shader, "smp_normal");
 	smp_noise = glGetUniformLocation(stages[1].shader, "smp_noise");
-	smp_kernel = glGetUniformLocation(stages[1].shader, "smp_kernel");
 
 	glUniform1i(smp_position, 0);
 	glUniform1i(smp_normal, 1);
 	glUniform1i(smp_noise, 2);
-	glUniform1i(smp_kernel, 3);
+
+	glGenTextures(1, &tex_ssao);
+	glBindTexture(GL_TEXTURE_2D, tex_ssao);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_ssao, 0);
 
 	int i;
 
 	float noise[16][3];
-	float kernel[16][3];
-	
-	for(i = 0; i < 16; i++) {
-    	noise[i][0] = (256 * ((float)rand()) / RAND_MAX);
-    	noise[i][1] = (256 * ((float)rand()) / RAND_MAX);
-    	noise[i][2] = 0.0f;
-    	
-		kernel[i][0] = -1 + 2 * ((float)rand()) / RAND_MAX;
-    	kernel[i][1] = -1 + 2 * ((float)rand()) / RAND_MAX;
-    	kernel[i][2] = ((float) rand()) / RAND_MAX;
-	}
-	
-	glGenTextures(1, &smp_noise);
-    glBindTexture(GL_TEXTURE_2D, smp_noise);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 4, 4, 0, GL_RGB, GL_BYTE, noise);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-    glGenTextures(1, &smp_kernel);
-    glBindTexture(GL_TEXTURE_2D, smp_kernel);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, kernel);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	for(i = 0; i < 16; i++) {
+		noise[i][0] = (256 * ((float) rand()) / RAND_MAX);
+		noise[i][1] = (256 * ((float) rand()) / RAND_MAX);
+		noise[i][2] = 0.0f;
+	}
+
+	glGenTextures(1, &smp_noise);
+	glBindTexture(GL_TEXTURE_2D, smp_noise);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
+void render_ssao() {
+	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(stages[1].shader);
+	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) projection.m);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_position);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, tex_normal);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, tex_noise);
+
+	glBindVertexArray(meshes[current_mesh].vao_id);
+	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void init_blur(int width, int height) {
 	stages[2].shader = rafgl_program_create_from_name("pipeline/blur");
 	stages[2].uni[0] = glGetUniformLocation(stages[2].shader, "uni_m");
-	stages[2].uni[1] = glGetUniformLocation(stages[2].shader, "uni_vp");
+	stages[2].uni[1] = glGetUniformLocation(stages[2].shader, "uni_v");
+	stages[2].uni[2] = glGetUniformLocation(stages[2].shader, "uni_p");
 	stages[2].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[2].fbo.fbo_id);
+
+	smp_ssao = glGetUniformLocation(stages[2].shader, "smp_ssao");
+
+	glUniform1i(smp_ssao, 0);
+
+	glGenTextures(1, &tex_blur);
+	glBindTexture(GL_TEXTURE_2D, tex_blur);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_blur, 0);
+}
+
+void render_blur() {
+	glBindFramebuffer(GL_FRAMEBUFFER, stages[2].fbo.fbo_id);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(stages[2].shader);
+	glUniformMatrix4fv(stages[2].uni[0], 1, GL_FALSE, (void*) model.m);
+	glUniformMatrix4fv(stages[2].uni[1], 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(stages[2].uni[2], 1, GL_FALSE, (void*) projection.m);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_ssao);
+
+	glBindVertexArray(meshes[current_mesh].vao_id);
+	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void init_light(int width, int height) {
 	stages[3].shader = rafgl_program_create_from_name("pipeline/light");
 	stages[3].uni[0] = glGetUniformLocation(stages[3].shader, "uni_m");
-	stages[3].uni[1] = glGetUniformLocation(stages[3].shader, "uni_vp");
+	stages[3].uni[1] = glGetUniformLocation(stages[3].shader, "uni_v");
+	stages[3].uni[2] = glGetUniformLocation(stages[3].shader, "uni_p");
 	stages[3].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[3].fbo.fbo_id);
+
+	smp_position = glGetUniformLocation(stages[3].shader, "smp_position");
+	smp_normal = glGetUniformLocation(stages[3].shader, "smp_normal");
+	smp_color = glGetUniformLocation(stages[3].shader, "smp_color");
+	smp_blur = glGetUniformLocation(stages[3].shader, "smp_blur");
+
+	glUniform1i(smp_position, 0);
+	glUniform1i(smp_normal, 1);
+	glUniform1i(smp_color, 2);
+	glUniform1i(smp_blur, 3);
+}
+
+void render_light() {
+	glBindFramebuffer(GL_FRAMEBUFFER, stages[3].fbo.fbo_id);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(stages[3].shader);
+	glUniformMatrix4fv(stages[3].uni[0], 1, GL_FALSE, (void*) model.m);
+	glUniformMatrix4fv(stages[3].uni[1], 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(stages[3].uni[2], 1, GL_FALSE, (void*) projection.m);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_position);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, tex_normal);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, tex_color);
+
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, tex_blur);
+
+	glBindVertexArray(meshes[current_mesh].vao_id);
+	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void init_postprocess(int width, int height) {
@@ -158,73 +261,9 @@ void init_postprocess(int width, int height) {
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[4].fbo.fbo_id);
 }
 
-void render_preprocess() {
-	glBindFramebuffer(GL_FRAMEBUFFER, stages[0].fbo.fbo_id);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUseProgram(stages[0].shader);
-	glUniformMatrix4fv(stages[0].uni[0], 1, GL_FALSE, (void*) model.m);
-	glUniformMatrix4fv(stages[0].uni[1], 1, GL_FALSE, (void*) view_projection.m);
-
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-}
-
-void render_ssao() {
-	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUseProgram(stages[1].shader);
-	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) model.m);
-	glUniformMatrix4fv(stages[1].uni[1], 1, GL_FALSE, (void*) view_projection.m);
-	glUniformMatrix4fv(stages[1].uni[2], 1, GL_FALSE, (void*) projection.m);
-	glUniform1f(stages[1].uni[3], SSAO_RADIUS);
-	glUniform1f(stages[1].uni[4], SSAO_BIAS);
-	glUniform1f(stages[1].uni[5], SSAO_POWER);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex_position);
-	
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, tex_normal);
-
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, tex_noise);
-
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, tex_kernel);
-
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-}
-
-void render_blur() {
-	glBindFramebuffer(GL_FRAMEBUFFER, stages[2].fbo.fbo_id);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUseProgram(stages[2].shader);
-	glUniformMatrix4fv(stages[2].uni[0], 1, GL_FALSE, (void*) model.m);
-	glUniformMatrix4fv(stages[2].uni[1], 1, GL_FALSE, (void*) view_projection.m);
-
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-}
-
-void render_light() {
-	glBindFramebuffer(GL_FRAMEBUFFER, stages[3].fbo.fbo_id);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glUseProgram(stages[3].shader);
-	glUniformMatrix4fv(stages[3].uni[0], 1, GL_FALSE, (void*) model.m);
-	glUniformMatrix4fv(stages[3].uni[1], 1, GL_FALSE, (void*) view_projection.m);
-
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-}
-
 void render_postprocess() {
-	glBindFramebuffer(GL_FRAMEBUFFER, stages[4].fbo.fbo_id);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//glBindFramebuffer(GL_FRAMEBUFFER, stages[4].fbo.fbo_id);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glUseProgram(stages[4].shader);
 	glUniformMatrix4fv(stages[4].uni[0], 1, GL_FALSE, (void*) model.m);
@@ -234,8 +273,10 @@ void render_postprocess() {
 
 	glBindVertexArray(meshes[current_mesh].vao_id);
 	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-	
+
 	// blend off
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void main_state_init(GLFWwindow* window, void* args, int width, int height) {
@@ -264,9 +305,10 @@ void main_state_init(GLFWwindow* window, void* args, int width, int height) {
 	init_ssao(width, height);
 	init_blur(width, height);
 	init_light(width, height);
-	init_postprocess(width, height);
+	//init_postprocess(width, height);
 
 	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* game_data, void* args) {
@@ -314,7 +356,7 @@ void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* 
 	int i;
 
 	for(i = 0; i < TOTAL_STAGES; i++) {
-		if(current_shader != i && game_data->keys_pressed[RAFGL_KEY_0 + i]) {
+		if(current_shader != i && game_data->keys_pressed[RAFGL_KEY_0 + i + 1]) {
 			current_shader = i;
 		}
 	}
@@ -345,7 +387,7 @@ void main_state_render(GLFWwindow* window, void* args) {
 	render_ssao();
 	render_blur();
 	render_light();
-	render_postprocess();
+	//render_postprocess();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
