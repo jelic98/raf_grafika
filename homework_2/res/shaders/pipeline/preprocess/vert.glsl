@@ -9,8 +9,8 @@ uniform mat4 uni_v;
 uniform mat4 uni_p;
 
 out vec3 pass_position;
-out vec2 pass_uv;
 out vec3 pass_normal;
+out vec2 pass_uv;
 
 void main() {
 	vec4 world_position = uni_v * uni_m * vec4(in_position, 1.0f);
@@ -18,6 +18,6 @@ void main() {
 	gl_Position = uni_p * world_position;
 
 	pass_position = world_position.xyz;
+    pass_normal = normalize(transpose(inverse(mat3(uni_v * uni_m))) * in_normal);
 	pass_uv = in_uv;	
-    pass_normal = transpose(inverse(mat3(uni_v * uni_m))) * in_normal;
 }

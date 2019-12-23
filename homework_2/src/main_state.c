@@ -48,8 +48,39 @@ static GLuint tex_position, smp_position;
 static GLuint tex_normal, smp_normal;
 static GLuint tex_color, smp_color;
 static GLuint tex_noise, smp_noise;
+static GLuint tex_kernel, smp_kernel;
 static GLuint tex_ssao, smp_ssao;
 static GLuint tex_blur, smp_blur;
+static GLuint tex_light, smp_light;
+
+void init_skybox() {
+	rafgl_texture_load_cubemap_named(&skybox_tex, "above_the_sea", "jpg");
+	
+	skybox_shader = rafgl_program_create_from_name("skybox");
+	skybox_uni_v = glGetUniformLocation(skybox_shader, "uni_v");
+	skybox_uni_p = glGetUniformLocation(skybox_shader, "uni_p");
+	
+	rafgl_meshPUN_init(&skybox_mesh);
+	rafgl_meshPUN_load_cube(&skybox_mesh, 1.0f);
+}
+
+void render_skybox() {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glDepthMask(GL_FALSE);
+	
+	glUseProgram(skybox_shader);
+	glUniformMatrix4fv(skybox_uni_v, 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(skybox_uni_p, 1, GL_FALSE, (void*) projection.m);
+	
+	glBindVertexArray(skybox_mesh.vao_id);
+	glDrawArrays(GL_TRIANGLES, 0, skybox_mesh.vertex_count);
+	
+	glDepthMask(GL_TRUE);
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
 void init_preprocess(int width, int height) {
 	stages[0].shader = rafgl_program_create_from_name("pipeline/preprocess");
@@ -65,8 +96,6 @@ void init_preprocess(int width, int height) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_position, 0);
 
 	glGenTextures(1, &tex_normal);
@@ -105,18 +134,20 @@ void render_preprocess() {
 
 void init_ssao(int width, int height) {
 	stages[1].shader = rafgl_program_create_from_name("pipeline/ssao");
-	stages[1].uni[0] = glGetUniformLocation(stages[1].shader, "uni_p");
+	stages[1].uni[0] = glGetUniformLocation(stages[1].shader, "uni_m");
+	stages[1].uni[1] = glGetUniformLocation(stages[1].shader, "uni_v");
+	stages[1].uni[2] = glGetUniformLocation(stages[1].shader, "uni_p");
 	stages[1].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
-
+	
 	smp_position = glGetUniformLocation(stages[1].shader, "smp_position");
 	smp_normal = glGetUniformLocation(stages[1].shader, "smp_normal");
 	smp_noise = glGetUniformLocation(stages[1].shader, "smp_noise");
+	smp_kernel = glGetUniformLocation(stages[1].shader, "smp_kernel");
 
-	glUniform1i(smp_position, 0);
-	glUniform1i(smp_normal, 1);
-	glUniform1i(smp_noise, 2);
+	glUniform1i(smp_noise, 0);
+	glUniform1i(smp_kernel, 1);
 
 	glGenTextures(1, &tex_ssao);
 	glBindTexture(GL_TEXTURE_2D, tex_ssao);
@@ -125,19 +156,33 @@ void init_ssao(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_ssao, 0);
 
-	int i;
-
 	float noise[16][3];
 
-	for(i = 0; i < 16; i++) {
-		noise[i][0] = (256 * ((float) rand()) / RAND_MAX);
-		noise[i][1] = (256 * ((float) rand()) / RAND_MAX);
+	for(int i = 0; i < 16; i++) {
+		noise[i][0] = ((float) rand()) / RAND_MAX;
+		noise[i][1] = ((float) rand()) / RAND_MAX;
 		noise[i][2] = 0.0f;
 	}
 
 	glGenTextures(1, &smp_noise);
 	glBindTexture(GL_TEXTURE_2D, smp_noise);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 4, 4, 0, GL_RGB, GL_FLOAT, noise);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	float kernel[64][3];
+
+	for(int i = 0; i < 64; i++) {
+		kernel[i][0] = (1.0f - 2.0f * ((float) rand()) / RAND_MAX);
+		kernel[i][1] = (1.0f - 2.0f * ((float) rand()) / RAND_MAX);
+		kernel[i][2] = ((float) rand()) / RAND_MAX;
+	}
+
+	glGenTextures(1, &smp_kernel);
+	glBindTexture(GL_TEXTURE_2D, smp_kernel);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 8, 8, 0, GL_RGB, GL_FLOAT, kernel);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -149,16 +194,21 @@ void render_ssao() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(stages[1].shader);
-	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) projection.m);
-
+	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) model.m);
+	glUniformMatrix4fv(stages[1].uni[1], 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(stages[1].uni[2], 1, GL_FALSE, (void*) projection.m);
+	
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_position);
-
+	
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, tex_normal);
 
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, tex_noise);
+	
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, tex_kernel);
 
 	glBindVertexArray(meshes[current_mesh].vao_id);
 	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
@@ -223,6 +273,13 @@ void init_light(int width, int height) {
 	glUniform1i(smp_normal, 1);
 	glUniform1i(smp_color, 2);
 	glUniform1i(smp_blur, 3);
+
+	glGenTextures(1, &tex_light);
+	glBindTexture(GL_TEXTURE_2D, tex_light);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_light, 0);
 }
 
 void render_light() {
@@ -255,27 +312,31 @@ void render_light() {
 void init_postprocess(int width, int height) {
 	stages[4].shader = rafgl_program_create_from_name("pipeline/postprocess");
 	stages[4].uni[0] = glGetUniformLocation(stages[4].shader, "uni_m");
-	stages[4].uni[1] = glGetUniformLocation(stages[4].shader, "uni_vp");
+	stages[4].uni[1] = glGetUniformLocation(stages[4].shader, "uni_v");
+	stages[4].uni[2] = glGetUniformLocation(stages[4].shader, "uni_p");
 	stages[4].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[4].fbo.fbo_id);
+
+	smp_light = glGetUniformLocation(stages[4].shader, "smp_light");
+
+	glUniform1i(smp_light, 0);
 }
 
 void render_postprocess() {
-	//glBindFramebuffer(GL_FRAMEBUFFER, stages[4].fbo.fbo_id);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+	
 	glUseProgram(stages[4].shader);
 	glUniformMatrix4fv(stages[4].uni[0], 1, GL_FALSE, (void*) model.m);
-	glUniformMatrix4fv(stages[4].uni[1], 1, GL_FALSE, (void*) view_projection.m);
+	glUniformMatrix4fv(stages[4].uni[1], 1, GL_FALSE, (void*) view.m);
+	glUniformMatrix4fv(stages[4].uni[2], 1, GL_FALSE, (void*) projection.m);
 
-	// blend on
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_light);
 
 	glBindVertexArray(meshes[current_mesh].vao_id);
 	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
 
-	// blend off
-	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -284,30 +345,19 @@ void main_state_init(GLFWwindow* window, void* args, int width, int height) {
 
 	rafgl_log_fps(RAFGL_TRUE);
 
-	rafgl_texture_load_cubemap_named(&skybox_tex, "above_the_sea", "jpg");
-
-	skybox_shader = rafgl_program_create_from_name("skybox");
-
-	skybox_uni_p = glGetUniformLocation(skybox_shader, "uni_p");
-	skybox_uni_v = glGetUniformLocation(skybox_shader, "uni_v");
-
-	rafgl_meshPUN_init(&skybox_mesh);
-	rafgl_meshPUN_load_cube(&skybox_mesh, 1.0f);
-
-	int i;
-
-	for(i = 0; i < 1; i++) {
+	for(int i = 0; i < 1; i++) {
 		rafgl_meshPUN_init(meshes + i);
 		rafgl_meshPUN_load_from_OBJ(meshes + i, mesh_names[i]);
 	}
 
+	init_skybox();
 	init_preprocess(width, height);
 	init_ssao(width, height);
 	init_blur(width, height);
 	init_light(width, height);
-	//init_postprocess(width, height);
+	init_postprocess(width, height);
 
-	glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 }
 
@@ -373,27 +423,35 @@ void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* 
 }
 
 void main_state_render(GLFWwindow* window, void* args) {
-	glDepthMask(GL_FALSE);
-	glUseProgram(skybox_shader);
-	glUniformMatrix4fv(skybox_uni_v, 1, GL_FALSE, (void*) view.m);
-	glUniformMatrix4fv(skybox_uni_p, 1, GL_FALSE, (void*) projection.m);
-	glBindVertexArray(skybox_mesh.vao_id);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_tex.tex_id);
-	glDrawArrays(GL_TRIANGLES, 0, skybox_mesh.vertex_count);
-	glDepthMask(GL_TRUE);
-
+	render_skybox();
 	render_preprocess();
 	render_ssao();
 	render_blur();
 	render_light();
-	//render_postprocess();
+	render_postprocess();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	rafgl_texture_t tex;
-	tex.tex_id = stages[current_shader].fbo.tex_id;
-	rafgl_texture_show(&tex, 1);
+
+	switch(current_shader) {
+		case 0:
+			tex.tex_id = tex_color;
+			rafgl_texture_show(&tex, 1);
+			break;
+		case 1:
+			tex.tex_id = tex_ssao;
+			rafgl_texture_show(&tex, 1);
+			break;
+		case 2:
+			tex.tex_id = tex_blur;
+			rafgl_texture_show(&tex, 1);
+			break;
+		case 3:
+			tex.tex_id = tex_light;
+			rafgl_texture_show(&tex, 1);
+			break;
+	}
 }
 
 void main_state_cleanup(GLFWwindow* window, void* args) {
