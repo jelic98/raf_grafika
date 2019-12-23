@@ -175,8 +175,8 @@ void init_ssao(int width, int height) {
 	float kernel[64][3];
 
 	for(int i = 0; i < 64; i++) {
-		kernel[i][0] = (1.0f - 2.0f * ((float) rand()) / RAND_MAX);
-		kernel[i][1] = (1.0f - 2.0f * ((float) rand()) / RAND_MAX);
+		kernel[i][0] = ((float) rand()) / RAND_MAX;
+		kernel[i][1] = ((float) rand()) / RAND_MAX;
 		kernel[i][2] = ((float) rand()) / RAND_MAX;
 	}
 
