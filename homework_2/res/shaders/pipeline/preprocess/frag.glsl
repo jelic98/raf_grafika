@@ -11,5 +11,5 @@ in vec3 pass_normal;
 void main() {    
 	out_position = pass_position;
 	out_normal = pass_normal;
-   	out_color = vec3(0.0f, 1.0f, 0.0f);
+   	out_color = vec3(1.0f);
 }

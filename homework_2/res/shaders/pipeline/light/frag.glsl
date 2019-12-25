@@ -9,8 +9,8 @@ uniform sampler2D smp_blur;
 
 out vec3 out_color;
 
-const vec3 light_position = vec3(-1.0f, 1.0f, 1.0f);
-const vec3 light_color = vec3(1.0f);
+const vec3 light_dir = vec3(-1.0f);
+const vec3 light_color = vec3(0.1f, 1.0f, 0.7f);
 
 void main() {
 	vec3 position = texture(smp_position, pass_uv).xyz;
@@ -18,16 +18,17 @@ void main() {
 	vec3 color = texture(smp_color, pass_uv).xyz;
 	float occlusion = texture(smp_blur, pass_uv).x;
 
-	vec3 view_dir = normalize(-position);
-	vec3 light_dir = normalize(light_position - position);
-
 	float ambient_factor = 0.3f;
-	float diffuse_factor = clamp(dot(normal, light_dir), ambient_factor, 1.0f);
-	float specular_factor = pow(clamp(dot(reflect(light_dir, normal), view_dir), 0.0f, 1.0f), 5.0f);
+	vec3 ambient_color = ambient_factor * color * occlusion;
 
-	vec3 ambient = vec3(ambient_factor * color * occlusion);
-	vec3 diffuse = diffuse_factor * color * light_color;
-	vec3 specular = specular_factor * light_color;
+	float diffuse_factor = dot(normal, normalize(-light_dir));
+	diffuse_factor = clamp(diffuse_factor, ambient_factor, 1.0f);
+	vec3 diffuse_color = diffuse_factor * color * light_color;
 
-	out_color = ambient + diffuse + specular;
+	float specular_factor = dot(reflect(normalize(light_dir), normal), normalize(-position));
+	specular_factor = clamp(specular_factor, 0.0f, 1.0f);
+	specular_factor = pow(specular_factor, 2.0f);
+	vec3 specular_color = specular_factor * light_color;
+
+	out_color = ambient_color + diffuse_color + specular_color;
 }

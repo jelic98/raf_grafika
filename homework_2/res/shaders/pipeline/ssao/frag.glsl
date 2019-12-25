@@ -44,7 +44,5 @@ void main() {
 		occlusion += (kernDepth >= kernSample.z + bias ? 1.0f : 0.0f) * rangeCheck;
 	}
 
-	//out_color = 1.0 - (occlusion / kernelSize);
-
-	out_color = 1.0f;	
+	out_color = 1.0 - (occlusion / kernelSize);
 }

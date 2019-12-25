@@ -201,8 +201,11 @@ void init_ssao(int width, int height) {
 	smp_noise = glGetUniformLocation(stages[1].shader, "smp_noise");
 	smp_kernel = glGetUniformLocation(stages[1].shader, "smp_kernel");
 
-	glUniform1i(smp_noise, 0);
-	glUniform1i(smp_kernel, 1);
+	glUseProgram(stages[1].shader);
+	glUniform1i(smp_position, 0);
+	glUniform1i(smp_normal, 1);
+	glUniform1i(smp_noise, 2);
+	glUniform1i(smp_kernel, 3);
 
 	glGenTextures(1, &tex_ssao);
 	glBindTexture(GL_TEXTURE_2D, tex_ssao);
@@ -279,6 +282,7 @@ void init_blur(int width, int height) {
 
 	smp_ssao = glGetUniformLocation(stages[2].shader, "smp_ssao");
 
+	glUseProgram(stages[2].shader);
 	glUniform1i(smp_ssao, 0);
 
 	glGenTextures(1, &tex_blur);
@@ -318,6 +322,7 @@ void init_light(int width, int height) {
 	smp_color = glGetUniformLocation(stages[3].shader, "smp_color");
 	smp_blur = glGetUniformLocation(stages[3].shader, "smp_blur");
 
+	glUseProgram(stages[3].shader);
 	glUniform1i(smp_position, 0);
 	glUniform1i(smp_normal, 1);
 	glUniform1i(smp_color, 2);
@@ -366,6 +371,7 @@ void init_postprocess(int width, int height) {
 
 	smp_light = glGetUniformLocation(stages[4].shader, "smp_light");
 
+	glUseProgram(stages[4].shader);
 	glUniform1i(smp_light, 0);
 }
 
