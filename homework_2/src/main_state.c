@@ -53,13 +53,49 @@ static GLuint tex_ssao, smp_ssao;
 static GLuint tex_blur, smp_blur;
 static GLuint tex_light, smp_light;
 
+static GLuint quadVAO, quadVBO;
+
+static float quad[] = {
+	// X, Y, Z, U, V
+	-1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+	-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+	1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+	1.0f, -1.0f, 0.0f, 1.0f, 0.0f
+};
+
+void render_quad() {
+	if(!quadVAO) {
+		glGenVertexArrays(1, &quadVAO);
+		glBindVertexArray(quadVAO);
+
+		glGenBuffers(1, &quadVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quad), &quad, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (const void*) 0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (const void*) (3 * sizeof(float)));
+	}
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+
+	glBindVertexArray(quadVAO);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glBindVertexArray(0);
+
+	glDisableVertexAttribArray(1);
+	glDisableVertexAttribArray(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void init_skybox() {
 	rafgl_texture_load_cubemap_named(&skybox_tex, "above_the_sea", "jpg");
-	
+
 	skybox_shader = rafgl_program_create_from_name("skybox");
 	skybox_uni_v = glGetUniformLocation(skybox_shader, "uni_v");
 	skybox_uni_p = glGetUniformLocation(skybox_shader, "uni_p");
-	
+
 	rafgl_meshPUN_init(&skybox_mesh);
 	rafgl_meshPUN_load_cube(&skybox_mesh, 1.0f);
 }
@@ -68,17 +104,27 @@ void render_skybox() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
-	
+
 	glUseProgram(skybox_shader);
 	glUniformMatrix4fv(skybox_uni_v, 1, GL_FALSE, (void*) view.m);
 	glUniformMatrix4fv(skybox_uni_p, 1, GL_FALSE, (void*) projection.m);
-	
+
 	glBindVertexArray(skybox_mesh.vao_id);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+
 	glDrawArrays(GL_TRIANGLES, 0, skybox_mesh.vertex_count);
-	
+
+	glDisableVertexAttribArray(2);
+	glDisableVertexAttribArray(1);
+	glDisableVertexAttribArray(0);
+
 	glDepthMask(GL_TRUE);
-	
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -127,7 +173,16 @@ void render_preprocess() {
 	glUniformMatrix4fv(stages[0].uni[2], 1, GL_FALSE, (void*) projection.m);
 
 	glBindVertexArray(meshes[current_mesh].vao_id);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+
 	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
+
+	glDisableVertexAttribArray(2);
+	glDisableVertexAttribArray(1);
+	glDisableVertexAttribArray(0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -140,7 +195,7 @@ void init_ssao(int width, int height) {
 	stages[1].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
-	
+
 	smp_position = glGetUniformLocation(stages[1].shader, "smp_position");
 	smp_normal = glGetUniformLocation(stages[1].shader, "smp_normal");
 	smp_noise = glGetUniformLocation(stages[1].shader, "smp_noise");
@@ -197,23 +252,20 @@ void render_ssao() {
 	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) model.m);
 	glUniformMatrix4fv(stages[1].uni[1], 1, GL_FALSE, (void*) view.m);
 	glUniformMatrix4fv(stages[1].uni[2], 1, GL_FALSE, (void*) projection.m);
-	
+
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_position);
-	
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, tex_normal);
 
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, tex_noise);
-	
+
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, tex_kernel);
 
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	render_quad();
 }
 
 void init_blur(int width, int height) {
@@ -249,10 +301,7 @@ void render_blur() {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_ssao);
 
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	render_quad();
 }
 
 void init_light(int width, int height) {
@@ -303,10 +352,7 @@ void render_light() {
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, tex_blur);
 
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	render_quad();
 }
 
 void init_postprocess(int width, int height) {
@@ -325,7 +371,7 @@ void init_postprocess(int width, int height) {
 
 void render_postprocess() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	
+
 	glUseProgram(stages[4].shader);
 	glUniformMatrix4fv(stages[4].uni[0], 1, GL_FALSE, (void*) model.m);
 	glUniformMatrix4fv(stages[4].uni[1], 1, GL_FALSE, (void*) view.m);
@@ -334,10 +380,7 @@ void render_postprocess() {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_light);
 
-	glBindVertexArray(meshes[current_mesh].vao_id);
-	glDrawArrays(GL_TRIANGLES, 0, meshes[current_mesh].vertex_count);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//render_quad();
 }
 
 void main_state_init(GLFWwindow* window, void* args, int width, int height) {
@@ -358,7 +401,6 @@ void main_state_init(GLFWwindow* window, void* args, int width, int height) {
 	init_postprocess(width, height);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
 }
 
 void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* game_data, void* args) {
@@ -435,22 +477,22 @@ void main_state_render(GLFWwindow* window, void* args) {
 	rafgl_texture_t tex;
 
 	switch(current_shader) {
-		case 0:
-			tex.tex_id = tex_color;
-			rafgl_texture_show(&tex, 1);
-			break;
-		case 1:
-			tex.tex_id = tex_ssao;
-			rafgl_texture_show(&tex, 1);
-			break;
-		case 2:
-			tex.tex_id = tex_blur;
-			rafgl_texture_show(&tex, 1);
-			break;
-		case 3:
-			tex.tex_id = tex_light;
-			rafgl_texture_show(&tex, 1);
-			break;
+	case 0:
+		tex.tex_id = tex_color;
+		rafgl_texture_show(&tex, 1);
+		break;
+	case 1:
+		tex.tex_id = tex_ssao;
+		rafgl_texture_show(&tex, 1);
+		break;
+	case 2:
+		tex.tex_id = tex_blur;
+		rafgl_texture_show(&tex, 1);
+		break;
+	case 3:
+		tex.tex_id = tex_light;
+		rafgl_texture_show(&tex, 1);
+		break;
 	}
 }
 

@@ -9,33 +9,25 @@ uniform sampler2D smp_blur;
 
 out vec3 out_color;
 
-const vec3 light_position = vec3(0.0f);
+const vec3 light_position = vec3(-1.0f, 1.0f, 1.0f);
 const vec3 light_color = vec3(1.0f);
-const float light_linear = 0.09f;
-const float light_quadratic = 0.032f;
 
 void main() {
 	vec3 position = texture(smp_position, pass_uv).xyz;
-	vec3 normal = texture(smp_normal, pass_uv).xyz;
+	vec3 normal = normalize(texture(smp_normal, pass_uv).xyz);
 	vec3 color = texture(smp_color, pass_uv).xyz;
 	float occlusion = texture(smp_blur, pass_uv).x;
 
-	vec3 ambient = vec3(color * (1 - occlusion));
-	vec3 lighting = ambient;
-	vec3 viewDir = normalize(-position);
+	vec3 view_dir = normalize(-position);
+	vec3 light_dir = normalize(light_position - position);
 
-	vec3 lightDir = normalize(light_position - position);
-	vec3 diffuse = max(dot(normal, lightDir), 0.0f) * color * light_color;
+	float ambient_factor = 0.3f;
+	float diffuse_factor = clamp(dot(normal, light_dir), ambient_factor, 1.0f);
+	float specular_factor = pow(clamp(dot(reflect(light_dir, normal), view_dir), 0.0f, 1.0f), 5.0f);
 
-	vec3 halfwayDir = normalize(lightDir + viewDir);
-	float spec = pow(max(dot(normal, halfwayDir), 0.0f), 8.0f);
-	vec3 specular = light_color * spec;
+	vec3 ambient = vec3(ambient_factor * color * occlusion);
+	vec3 diffuse = diffuse_factor * color * light_color;
+	vec3 specular = specular_factor * light_color;
 
-	float dist = length(light_position - position);
-	float attenuation = 1.0f / (1.0f + light_linear * dist + light_quadratic * dist * dist);
-	diffuse *= attenuation;
-	specular *= attenuation;
-	lighting += diffuse + specular;
-
-	out_color = lighting;
+	out_color = ambient + diffuse + specular;
 }

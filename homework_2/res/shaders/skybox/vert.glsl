@@ -1,8 +1,8 @@
 #version 410 core
 
 layout (location = 0) in vec3 in_position;
-layout (location = 1) in vec3 in_normal;
-layout (location = 2) in vec2 in_uv;
+layout (location = 1) in vec2 in_uv;
+layout (location = 2) in vec3 in_normal;
 
 uniform mat4 uni_v;
 uniform mat4 uni_p;
