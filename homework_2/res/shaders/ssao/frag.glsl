@@ -11,38 +11,46 @@ uniform sampler2D smp_kernel;
 
 out float out_color;
 
-const int kernelSize = 64;
-const float radius = 0.5f;
-const float bias = 0.025f;
-const vec2 noiseScale = vec2(1440.0f / 4.0f, 900.0f / 4.0f);
+const int size_kernel = 25;
+const vec2 scale_noise = vec2(1440.0f / 4.0f, 900.0f / 4.0f);
+
+const float ssao_factor = 0.7f;
+const float ssao_radius = 0.5f;
 
 void main() {
 	vec3 position = texture(smp_position, pass_uv).xyz;
 	vec3 normal = normalize(texture(smp_normal, pass_uv).xyz);
-	vec3 randomVec = normalize(texture(smp_noise, pass_uv * noiseScale).xyz * vec3(2.0f) - vec3(1.0f, 1.0f, 0.0f));
 
-	vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+	vec2 noiseUV = pass_uv * scale_noise;
+	vec3 noiseXYZ = texture(smp_noise, noiseUV).xyz;
+	noiseXYZ = noiseXYZ * vec3(2.0f, 2.0f, 0.0f);
+	noiseXYZ = noiseXYZ - vec3(1.0f, 1.0f, 0.0f);
+	noiseXYZ = normalize(noiseXYZ);
+
+	vec3 tangent = normalize(noiseXYZ - normal * dot(noiseXYZ, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
 	
 	float occlusion = 0.0f;
 
-	for(int i = 0; i < kernelSize; i++) {
-		vec2 kernUV = vec2((i / sqrt(kernelSize)) / kernelSize, i % (int(sqrt(kernelSize)) / kernelSize));
-		vec3 kernXYZ = normalize(texture(smp_kernel, pass_uv).xyz * vec3(2.0f, 2.0f, 1.0f) - vec3(1.0f, 1.0f, 0.0f));
-		vec3 kernSample = TBN * kernXYZ;
-		kernSample = position + kernSample * radius;
-	
-		vec4 offset = vec4(kernSample, 1.0f);
+	for(int i = 0; i < size_kernel; i++) {
+		vec2 kernelUV = vec2(i / sqrt(size_kernel), i % int(sqrt(size_kernel)));
+		vec3 kernelXYZ = texture(smp_kernel, kernelUV).xyz;
+		kernelXYZ = kernelXYZ * vec3(2.0f, 2.0f, 1.0f);
+		kernelXYZ = kernelXYZ - vec3(1.0f, 1.0f, 0.0f);
+		kernelXYZ = normalize(kernelXYZ);
+
+		vec3 sampled = position + TBN * kernelXYZ * ssao_radius;
+		vec4 offset = vec4(sampled, 1.0f);
 		offset = uni_p * offset;
 		offset.xyz /= offset.w;
 		offset.xyz = offset.xyz * 0.5f + 0.5f;
 
-		float kernDepth = texture(smp_position, offset.xy).z;
-		float rangeCheck = smoothstep(0.0f, 1.0f, radius / abs(position.z - kernDepth));
-
-		occlusion += (kernDepth >= kernSample.z + bias ? 1.0f : 0.0f) * rangeCheck;
+		float depth = texture(smp_position, offset.xy).z;
+		
+		occlusion += depth > sampled.z ? 1.0f : 0.0f;
 	}
 
-	out_color = 1.0 - (occlusion / kernelSize);
+	out_color = 1.0f - occlusion / size_kernel;
+	out_color = pow(out_color, ssao_factor);
 }

@@ -10,6 +10,6 @@ in vec3 pass_normal;
 
 void main() {    
 	out_position = pass_position;
-	out_normal = pass_normal;
-   	out_color = vec3(1.0f);
+	out_normal = normalize(pass_normal);
+   	out_color = vec3(0.9f);
 }

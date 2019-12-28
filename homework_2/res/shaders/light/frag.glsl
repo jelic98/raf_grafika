@@ -2,6 +2,7 @@
 
 in vec2 pass_uv;
 
+uniform float flag_ssao;
 uniform sampler2D smp_position;
 uniform sampler2D smp_normal;
 uniform sampler2D smp_color;
@@ -10,7 +11,7 @@ uniform sampler2D smp_blur;
 out vec3 out_color;
 
 const vec3 light_dir = vec3(-1.0f);
-const vec3 light_color = vec3(0.1f, 1.0f, 0.7f);
+const vec3 light_color = vec3(1.0f);
 
 void main() {
 	vec3 position = texture(smp_position, pass_uv).xyz;
@@ -19,7 +20,7 @@ void main() {
 	float occlusion = texture(smp_blur, pass_uv).x;
 
 	float ambient_factor = 0.3f;
-	vec3 ambient_color = ambient_factor * color * occlusion;
+	vec3 ambient_color = ambient_factor * color * (flag_ssao > 0.5f ? occlusion : 1);
 
 	float diffuse_factor = dot(normal, normalize(-light_dir));
 	diffuse_factor = clamp(diffuse_factor, ambient_factor, 1.0f);

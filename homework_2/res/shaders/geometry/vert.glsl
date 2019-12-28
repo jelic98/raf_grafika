@@ -13,11 +13,11 @@ out vec3 pass_normal;
 out vec2 pass_uv;
 
 void main() {
-	vec4 world_position = uni_m * vec4(in_position, 1.0f);
+	vec4 view_position = uni_v * uni_m * vec4(in_position, 1.0f);
 
-	gl_Position = uni_p * uni_v * world_position;
+	gl_Position = uni_p * view_position;
 
-	pass_position = world_position.xyz;
-	pass_normal = normalize(transpose(inverse(mat3(uni_m))) * in_normal);
+	pass_position = view_position.xyz;
+	pass_normal = transpose(inverse(mat3(uni_v * uni_m))) * in_normal;
 	pass_uv = in_uv;
 }

@@ -7,7 +7,7 @@
 #include <time.h>
 
 #define TOTAL_STAGES 4
-#define TOTAL_UNIFORMS 3
+#define TOTAL_UNIFORMS 4
 #define TOTAL_MESHES 1
 #define LENGTH_NAME 128
 #define FIELD_OF_VIEW 75.0f
@@ -27,16 +27,22 @@ static vec3_t aim_dir = vec3m(0.0f, 0.0f, -1.0f);
 static rafgl_meshPUN_t meshes[TOTAL_MESHES];
 static const char* mesh_names[TOTAL_MESHES] = { "res/models/monkey.obj" };
 
+static const int size_noise = 16;
+static const int size_kernel = 25;
+
+static const float factor_scale = 1.0f;
+
 static int current_texture = 0;
 static int current_mesh = 0;
 
 static float angle_v = 0.0f;
 static float angle_h = -M_PIf * 0.5f;
-static float angle_speed = M_PIf * 0.003f;
+static float angle_speed = M_PIf * 0.006f;
 static float angle_model = -M_PIf;
 static float speed_move = 5.0f;
 
 static int flag_rotate = 0;
+static float flag_ssao = 1.0f;
 
 static GLuint tex_position, smp_position;
 static GLuint tex_normal, smp_normal;
@@ -97,6 +103,8 @@ void init_geometry(int width, int height) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_position, 0);
 
 	glGenTextures(1, &tex_normal);
@@ -169,25 +177,25 @@ void init_ssao(int width, int height) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_ssao, 0);
 
-	float noise[16][3];
+	float noise[size_noise][3];
 
-	for(int i = 0; i < 16; i++) {
+	for(int i = 0; i < size_noise; i++) {
 		noise[i][0] = ((float) rand()) / RAND_MAX;
 		noise[i][1] = ((float) rand()) / RAND_MAX;
-		noise[i][2] = 0.0f;
+		noise[i][2] = ((float) rand()) / RAND_MAX;
 	}
 
 	glGenTextures(1, &tex_noise);
 	glBindTexture(GL_TEXTURE_2D, tex_noise);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 4, 4, 0, GL_RGB, GL_FLOAT, noise);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, sqrt(size_noise), sqrt(size_noise), 0, GL_RGB, GL_FLOAT, noise);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	float kernel[64][3];
+	float kernel[size_kernel][3];
 
-	for(int i = 0; i < 64; i++) {
+	for(int i = 0; i < size_kernel; i++) {
 		kernel[i][0] = ((float) rand()) / RAND_MAX;
 		kernel[i][1] = ((float) rand()) / RAND_MAX;
 		kernel[i][2] = ((float) rand()) / RAND_MAX;
@@ -195,7 +203,7 @@ void init_ssao(int width, int height) {
 
 	glGenTextures(1, &tex_kernel);
 	glBindTexture(GL_TEXTURE_2D, tex_kernel);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, 8, 8, 0, GL_RGB, GL_FLOAT, kernel);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, sqrt(size_kernel), sqrt(size_kernel), 0, GL_RGB, GL_FLOAT, kernel);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -268,6 +276,7 @@ void init_light(int width, int height) {
 	stages[3].uni[0] = glGetUniformLocation(stages[3].shader, "uni_m");
 	stages[3].uni[1] = glGetUniformLocation(stages[3].shader, "uni_v");
 	stages[3].uni[2] = glGetUniformLocation(stages[3].shader, "uni_p");
+	stages[3].uni[3] = glGetUniformLocation(stages[3].shader, "flag_ssao");
 	stages[3].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[3].fbo.fbo_id);
@@ -299,6 +308,7 @@ void render_light() {
 	glUniformMatrix4fv(stages[3].uni[0], 1, GL_FALSE, (void*) model.m);
 	glUniformMatrix4fv(stages[3].uni[1], 1, GL_FALSE, (void*) view.m);
 	glUniformMatrix4fv(stages[3].uni[2], 1, GL_FALSE, (void*) projection.m);
+	glUniform1f(stages[3].uni[3], flag_ssao);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_position);
@@ -372,6 +382,10 @@ void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* 
 		flag_rotate = !flag_rotate;
 	}
 
+	if(game_data->keys_pressed['O']) {
+		flag_ssao = 1.0f - flag_ssao;
+	}
+
 	if(game_data->keys_down[RAFGL_KEY_ESCAPE]) {
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 	}
@@ -387,6 +401,8 @@ void main_state_update(GLFWwindow* window, float delta_time, rafgl_game_data_t* 
 	model = m4_identity();
 	model = m4_rotation_y(angle_model += delta_time * flag_rotate);
 	model = m4_mul(model, m4_translation(vec3(0.0f, sinf(angle_model) * 0.5f, 0.0f)));
+	model = m4_mul(model, m4_translation(vec3(0.0f, 0.8f, -3.2f)));
+	model = m4_mul(model, m4_scaling(vec3(factor_scale, factor_scale, factor_scale)));
 
 	view = m4_look_at(camera_dir, v3_add(camera_dir, aim_dir), camera_up);
 
@@ -431,7 +447,7 @@ void main_state_render(GLFWwindow* window, void* args) {
 			tex.tex_id = tex_light;
 			break;
 	}
-	
+
 	rafgl_texture_show(&tex, 1);
 }
 
