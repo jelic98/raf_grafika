@@ -3,6 +3,7 @@
 in vec2 pass_uv;
 
 uniform float flag_ssao;
+
 uniform sampler2D smp_position;
 uniform sampler2D smp_normal;
 uniform sampler2D smp_color;

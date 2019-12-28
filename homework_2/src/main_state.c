@@ -28,7 +28,7 @@ static rafgl_meshPUN_t meshes[TOTAL_MESHES];
 static const char* mesh_names[TOTAL_MESHES] = { "res/models/monkey.obj" };
 
 static const int size_noise = 16;
-static const int size_kernel = 25;
+static const int size_kernel = 64;
 
 static const float factor_scale = 1.0f;
 
@@ -155,6 +155,7 @@ void init_ssao(int width, int height) {
 	stages[1].uni[0] = glGetUniformLocation(stages[1].shader, "uni_m");
 	stages[1].uni[1] = glGetUniformLocation(stages[1].shader, "uni_v");
 	stages[1].uni[2] = glGetUniformLocation(stages[1].shader, "uni_p");
+	stages[1].uni[3] = glGetUniformLocation(stages[1].shader, "size_kernel");
 	stages[1].fbo = rafgl_framebuffer_simple_create(width, height);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, stages[1].fbo.fbo_id);
@@ -218,6 +219,7 @@ void render_ssao() {
 	glUniformMatrix4fv(stages[1].uni[0], 1, GL_FALSE, (void*) model.m);
 	glUniformMatrix4fv(stages[1].uni[1], 1, GL_FALSE, (void*) view.m);
 	glUniformMatrix4fv(stages[1].uni[2], 1, GL_FALSE, (void*) projection.m);
+	glUniform1i(stages[1].uni[3], size_kernel);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, tex_position);

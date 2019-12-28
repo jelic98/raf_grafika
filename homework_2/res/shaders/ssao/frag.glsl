@@ -4,6 +4,8 @@ in vec2 pass_uv;
 
 uniform mat4 uni_p;
 
+uniform int size_kernel;
+
 uniform sampler2D smp_position;
 uniform sampler2D smp_normal;
 uniform sampler2D smp_noise;
@@ -11,11 +13,10 @@ uniform sampler2D smp_kernel;
 
 out float out_color;
 
-const int size_kernel = 25;
 const vec2 scale_noise = vec2(1440.0f / 4.0f, 900.0f / 4.0f);
 
-const float ssao_factor = 0.7f;
-const float ssao_radius = 0.5f;
+const float ssao_factor = 3.0f;
+const float ssao_radius = 0.05f;
 
 void main() {
 	vec3 position = texture(smp_position, pass_uv).xyz;
@@ -30,7 +31,7 @@ void main() {
 	vec3 tangent = normalize(noiseXYZ - normal * dot(noiseXYZ, normal));
 	vec3 bitangent = cross(normal, tangent);
 	mat3 TBN = mat3(tangent, bitangent, normal);
-	
+
 	float occlusion = 0.0f;
 
 	for(int i = 0; i < size_kernel; i++) {
@@ -47,10 +48,11 @@ void main() {
 		offset.xyz = offset.xyz * 0.5f + 0.5f;
 
 		float depth = texture(smp_position, offset.xy).z;
-		
-		occlusion += depth > sampled.z ? 1.0f : 0.0f;
+		float range = smoothstep(0.0, 1.0, ssao_radius / abs(position.z - depth));
+
+		occlusion += (depth > sampled.z ? 1.0 : 0.0) * range;
 	}
 
-	out_color = 1.0f - occlusion / size_kernel;
+	out_color = 1.0f - (occlusion / size_kernel);
 	out_color = pow(out_color, ssao_factor);
 }
