@@ -18,5 +18,5 @@ void main() {
 		}
 	}
 
-	out_color /= 16.0f;
+	out_color /= 25.0f;
 }
