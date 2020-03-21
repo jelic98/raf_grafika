@@ -1,5 +1,3 @@
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
 # Homework 1
 
 Command line tool for batch photo editing. There are two runtime modes. In the first one (non-interactive), user loads a command file in which are specified list of images and effects to be applied on those images. Second mode (interactive) gives user control of which effects to accept or reject.
