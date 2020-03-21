@@ -1,5 +1,3 @@
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
 # Homework 2
 
 Implementation of screen space ambient occlusion (SSAO). Detailed explanation can be found [here](https://learnopengl.com/Advanced-Lighting/SSAO).
