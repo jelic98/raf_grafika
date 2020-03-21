@@ -17,7 +17,7 @@ git clone https://github.com/jelic98/raf_rg.git
 2. Move into newly created directory
 
 ```gradle
-cd raf_rg
+cd raf_rg/homework_1
 ```
 
 ## Usage
