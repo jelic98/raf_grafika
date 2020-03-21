@@ -14,4 +14,8 @@ build: $(IN) include/main_state.h include/commands.h include/stb_image.h
 	$(CC) $(IN) -o $(OUT) $(CFLAGS) $(LFLAGS) $(IFLAGS)
 
 run: $(OUT)
-	./$(OUT) $(ARGS)
+ifdef IS_INTER
+	./$(OUT) -i $(SRC)
+else
+	./$(OUT) $(SRC)
+endif

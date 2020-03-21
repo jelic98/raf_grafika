@@ -14,7 +14,7 @@ Command line tool for batch photo editing. There are two runtime modes. In the f
 git clone https://github.com/jelic98/raf_rg.git
 ```
 
-2. Move into cloned directory
+2. Move into newly created directory
 
 ```gradle
 cd raf_rg
@@ -41,16 +41,22 @@ echo "LOAD demo/test2.png output2.png" >> test.cmd
 echo "RECT 200 200 150 50 00FF00FF FF0000FF" >> test.cmd
 ```
 
-4a. Run tool in non-interactive mode
+4. Grant execution privilege to run script
 
 ```bash
-make test.cmd
+chmod +x run.sh
 ```
 
-4b. Run tool in interactive mode
+5a. Run tool in non-interactive mode
 
 ```bash
-make -i test.cmd
+./run.sh test.cmd
+```
+
+5b. Run tool in interactive mode
+
+```bash
+./run.sh -i test.cmd
 ```
 
 ## Manual
