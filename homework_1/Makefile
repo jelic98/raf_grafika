@@ -4,7 +4,6 @@ OUT = main.out
 CFLAGS = -Wall -DGLFW_INCLUDE_NONE
 LFLAGS = -lglfw -ldl -lm
 IFLAGS = -I. -I./include
-ARGS = test/edit.cmd -i
 
 .SILENT all: clean build run
 

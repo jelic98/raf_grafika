@@ -1,77 +1,62 @@
-### LOAD - _Load image_
-1. _path_ __src__: Path to load original image from
-2. _path_ __dst__: Path to save modified image to
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-### INST - _Insert image_
-1. _path_ __src__: Path to load original image from
-2. _int_ __x0__: Top left point x coordinate
-3. _int_ __y0__: Top left point y coordinate
-4. _int_ __w__: Rectangle width in which image will be inserted
-5. _int_ __h__: Rectangle height in which image will be inserted
+# Homework 1
 
-### SLCT - _Select effect intensity interactively_
-1. _effect_ __effect__: Effect name that will be used in interactive selection
+Command line tool for batch photo editing. There are two runtime modes. In the first one (non-interactive), user loads a command file in which are specified list of images and effects to be applied on those images. Second mode (interactive) gives user control of which effects to accept or reject.
 
-### BRIG - _Adjust image brightness_
-1. _float_ __value__: Brightness value
+![Interactive mode](https://github.com/jelic98/raf_rg/blob/master/homework_1/demo/interactive.png)
 
-### LINE - _Draw line_
-1. _int_ __x0__: Starting point x coordinate
-2. _int_ __y0__: Starting point y coordinate
-3. _int_ __x1__: Ending point x coordinate
-4. _int_ __y1__: Ending point y coordinate
-5. _hex_ __stroke__: Hexadecimal RGBA color code for stroke
+## Installing
 
-### CIRC - _Draw circle_
-1. _int_ __xc__: Center point x coordinate
-2. _int_ __yc__: Center point y coordinate
-3. _int_ __r__: Circle radius
-4. _hex_ __stroke__: Hexadecimal RGBA color code for stroke
-5. _hex_ __fill__: Hexadecimal RGBA color code for fill
+1. Clone repository
 
-### RECT - _Draw rectangle_
-1. _int_ __x0__: Top left point x coordinate
-2. _int_ __y0__: Top left point y coordinate
-3. _int_ __w__: Rectangle width
-4. _int_ __h__: Rectangle height
-5. _hex_ __stroke__: Hexadecimal RGBA color code for stroke
-6. _hex_ __fill__: Hexadecimal RGBA color code for fill
+```bash
+git clone https://github.com/jelic98/raf_rg.git
+```
 
-### ROTA - _Rotate image_
-* _No arguments_
+2. Move into cloned directory
 
-### FLPV - _Flip image vertically_
-* _No arguments_
+```gradle
+cd raf_rg
+```
 
-### FLPH - _Flip image horizontally_
-* _No arguments_
+## Usage
 
-### EDGE - _Detect edges_
-* _No arguments_
+1. Create new command file
 
-### AUTO - _Auto adjust colors_
-* _No arguments_
+```bash
+touch test.cmd
+```
 
-### NGTV - _Apply negative effect_
-* _No arguments_
+2. Load batch of images and specify output path
 
-### GRAY - _Apply grayscale effect_
-* _No arguments_
+```bash
+echo "LOAD demo/test1.png output1.png" >> test.cmd
+echo "LOAD demo/test2.png output2.png" >> test.cmd
+```
 
-### BLWH - _Apply black and white effect_
-1. _int_ __threshold__: Brightness threshold
+3. Specify sequence of effects to be applied on each image
 
-### VIGN - _Apply vignette effect_
-1. _float_ __xc__: Center point x coordinate
-2. _float_ __yc__: Center point y percentage
-3. _float_ __factor__: Effect factor
+```bash
+echo "RECT 200 200 150 50 00FF00FF FF0000FF" >> test.cmd
+```
 
-### BBLR - _Apply box blur effect_
-1. _int_ __radius__: Effect radius
+4a. Run tool in non-interactive mode
 
-### RBLR - _Apply radial blur effect_
-1. _float_ __intensity__: Effect intensity
+```bash
+make test.cmd
+```
 
-### ZBLR - _Apply zoom blur effect_
-1. _float_ __intensity__: Effect intensity
+4b. Run tool in interactive mode
 
+```bash
+make -i test.cmd
+```
+
+## Manual
+
+For advanced usage, take a look at this awesome [manual](https://github.com/jelic98/raf_rg/blob/master/homework_1/MANUAL.md).
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
