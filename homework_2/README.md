@@ -4,6 +4,11 @@
 
 Implementation of screen space ambient occlusion (SSAO). Detailed explanation can be found [here](https://learnopengl.com/Advanced-Lighting/SSAO).
 
+
+SSAO Off | SSAO On
+--- | ---
+![SSAO Off](https://github.com/jelic98/raf_rg/blob/master/homework_2/demo/ssao_off.png) | ![SSAO On](https://github.com/jelic98/raf_rg/blob/master/homework_2/demo/ssao_on.png)
+
 ## Installing
 
 1. Clone repository
